@@ -1,0 +1,11 @@
+# Raw source archive — contains real, unredacted email addresses (see docs/data-structures.md).
+# Never committed; ADR-0008/FR-4 scrub PII from the canonical dataset and site output,
+# but that guarantee is worthless if the raw source itself gets pushed to a public repo.
+mail_archives/
+
+# Local/OS noise
+.DS_Store
+node_modules/
+
+# Future Eleventy build output (dd.md §10) — generated, not source
+_site/
