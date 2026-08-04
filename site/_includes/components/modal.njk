@@ -1,0 +1,12 @@
+{#- Shared native-<dialog> component (FR-26). Focus trap and Escape-to-close
+    are native browser behavior, not hand-built -- see ADR-0006 and
+    ui-design.md §5. Included by post.njk (Phase 4) alongside
+    site/js/attachment-modal.js, which wires up any [data-open-attachment-modal]
+    trigger to open it and #close-modal-btn to close it. -#}
+<dialog id="attachment-modal" aria-labelledby="modal-title">
+  <h2 id="modal-title">Attachment not available</h2>
+  <p>This attachment isn't currently available in this archive. It may have been referenced from Yahoo Groups' Files section, which wasn't captured in the original email export.</p>
+  <div class="dialog-actions">
+    <button class="btn" id="close-modal-btn" type="button">Close</button>
+  </div>
+</dialog>

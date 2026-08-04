@@ -1,0 +1,23 @@
+---
+layout: layouts/base.njk
+permalink: "/browse/"
+title: "Browse by year"
+description: "Browse the Traveller_TNE archive chronologically, by year and month."
+breadcrumb:
+  - label: "Home"
+    url: "/"
+  - label: "Browse"
+---
+<h1>Browse by year</h1>
+<p class="lede">{{ posts.years.length }} years of activity, {{ posts.all[0].date_utc | monthYear }} – {{ posts.all[posts.all.length - 1].date_utc | monthYear }}.</p>
+
+<ul class="index-list">
+  {% for year in posts.years %}
+  <li>
+    <div>
+      <a href="{{ ('/browse/' + year + '/') | url }}">{{ year }}</a>
+    </div>
+    <span class="count">{{ posts.byYear.get(year).posts.length }} post{{ "s" if posts.byYear.get(year).posts.length != 1 }}</span>
+  </li>
+  {% endfor %}
+</ul>

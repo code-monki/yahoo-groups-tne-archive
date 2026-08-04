@@ -1,0 +1,23 @@
+---
+layout: layouts/base.njk
+title: "Traveller: The New Era"
+description: "A static archive of the Traveller_TNE Yahoo! Group — Traveller: The New Era fans, 2005–2019 — preserved as threaded, searchable posts."
+---
+<h1>Search or browse the archive</h1>
+<p class="lede">724 emails' worth of ship designs, house rules, worldbuilding, and years of debate about jump drives and jump fuel — preserved as threaded, searchable posts after Yahoo Groups shut the original community down in 2020.</p>
+
+<form class="search-form" role="search" method="get" action="{{ '/search/' | url }}" aria-label="Search the archive">
+  <label class="visually-hidden" for="home-search">Search the archive</label>
+  <input id="home-search" name="q" type="search" placeholder="Search the archive…">
+  <button class="btn" type="submit">Search</button>
+</form>
+
+<h2>Recent posts</h2>
+<ul class="post-list">
+  {% for post in posts.recentPosts %}
+  <li>
+    <a class="post-title" href="{{ ('/posts/' + post.id + '/') | url }}">{{ post.subject }}</a>
+    <span class="post-meta">{{ post.author.display_name }} · {{ post.date_utc | formatDate }}</span>
+  </li>
+  {% endfor %}
+</ul>

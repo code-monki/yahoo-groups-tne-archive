@@ -1,0 +1,76 @@
+/* Design tokens (ui-design.md §2-4) — contrast-verified color values, type
+   scale, spacing scale. Must load before base.css/components.css, which
+   consume these custom properties and never hardcode a color/size directly. */
+
+:root {
+  --color-bg: #FFFFFF;
+  --color-surface: #F5F6F8;
+  --color-text: #1A1A1A;
+  --color-text-muted: #55595E;
+  --color-accent: #1F4FD6;
+  --color-accent-on: #FFFFFF;
+  --color-border-decorative: #D9DCE1;
+  --color-border-ui: #767B82;
+  --color-focus: #1F4FD6;
+
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.75rem;
+  --text-2xl: 2.25rem;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+
+  --content-width: 760px;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #121417;
+    --color-surface: #1B1E22;
+    --color-text: #EDEDED;
+    --color-text-muted: #A8AEB5;
+    --color-accent: #7FA8FF;
+    --color-accent-on: #121417;
+    --color-border-decorative: #33383D;
+    --color-border-ui: #7A8087;
+    --color-focus: #7FA8FF;
+    color-scheme: dark;
+  }
+}
+
+/* Stamped on <html> by theme-toggle.js; must win in both directions over
+   the media query above, since it represents an explicit user override of
+   their OS preference. */
+:root[data-theme="dark"] {
+  --color-bg: #121417;
+  --color-surface: #1B1E22;
+  --color-text: #EDEDED;
+  --color-text-muted: #A8AEB5;
+  --color-accent: #7FA8FF;
+  --color-accent-on: #121417;
+  --color-border-decorative: #33383D;
+  --color-border-ui: #7A8087;
+  --color-focus: #7FA8FF;
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  --color-bg: #FFFFFF;
+  --color-surface: #F5F6F8;
+  --color-text: #1A1A1A;
+  --color-text-muted: #55595E;
+  --color-accent: #1F4FD6;
+  --color-accent-on: #FFFFFF;
+  --color-border-decorative: #D9DCE1;
+  --color-border-ui: #767B82;
+  --color-focus: #1F4FD6;
+  color-scheme: light;
+}

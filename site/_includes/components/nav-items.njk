@@ -1,0 +1,7 @@
+{#- Shared macro so the mobile and desktop nav renderings (base.njk) can
+    never drift out of sync -- both call this with the same `nav` data. -#}
+{% macro navItems(items, currentUrl) %}
+{% for item in items %}
+  <li><a class="navlink" href="{{ item.url | url }}"{% if currentUrl == item.url or (item.url != '/' and currentUrl.startsWith(item.url)) %} aria-current="page"{% endif %}>{{ item.label }}</a></li>
+{% endfor %}
+{% endmacro %}

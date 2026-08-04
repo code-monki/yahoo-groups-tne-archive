@@ -1,0 +1,18 @@
+---
+layout: layouts/base.njk
+pagination:
+  data: posts.authors
+  size: 1
+  alias: author
+permalink: "/authors/{{ author.slug }}/"
+---
+<h1>{{ author.displayName }} · {{ author.posts.length }} post{{ "s" if author.posts.length != 1 }}</h1>
+
+<ul class="post-list">
+  {% for post in author.posts %}
+  <li>
+    <a class="post-title" href="{{ ('/posts/' + post.id + '/') | url }}">{{ post.subject }}</a>
+    <span class="post-meta">{{ post.date_utc | formatDate }}</span>
+  </li>
+  {% endfor %}
+</ul>

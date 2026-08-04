@@ -1,0 +1,24 @@
+---
+layout: layouts/base.njk
+permalink: "/topics/"
+title: "Topics"
+description: "Posts grouped by normalized subject, independent of thread structure."
+breadcrumb:
+  - label: "Home"
+    url: "/"
+  - label: "Topics"
+---
+<h1>Topics</h1>
+<p class="lede">Posts grouped by normalized subject (the original post's title), independent of thread structure — this is how you browse by subject rather than by date or author. Useful since many older posts have no reply headers at all (FR-17).</p>
+
+<ul class="index-list">
+  {% for topic in posts.topics %}
+  <li>
+    <div>
+      <a href="{{ ('/topics/' + topic.slug + '/') | url }}">{{ topic.subject }}</a>
+      <span class="sub">Started by {{ topic.posts[0].author.display_name }}</span>
+    </div>
+    <span class="count">{{ topic.posts.length }} post{{ "s" if topic.posts.length != 1 }}</span>
+  </li>
+  {% endfor %}
+</ul>

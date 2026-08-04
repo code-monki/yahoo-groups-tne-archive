@@ -1,0 +1,247 @@
+/* Component-level styles. Ported from the reviewed mockup; mockup-only
+   scaffolding (.screen/.is-active fake routing, .preview-banner, .demo-note)
+   is intentionally not carried over -- Eleventy generates real separate
+   pages instead. */
+
+.header-actions { display: flex; align-items: center; gap: var(--space-4); }
+
+header.site-header {
+  border-bottom: 1px solid var(--color-border-decorative);
+}
+.header-inner {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-5);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+a.site-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  text-decoration: none;
+  color: var(--color-text);
+  text-wrap: balance;
+}
+.site-name-text { display: block; }
+.site-name-text span {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+.brand-mark { color: var(--color-accent); flex-shrink: 0; }
+
+.nav-disclosure summary {
+  cursor: pointer;
+  font-size: var(--text-sm);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-ui);
+  border-radius: 4px;
+  list-style: none;
+}
+.nav-disclosure summary::-webkit-details-marker { display: none; }
+.nav-links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+}
+.nav-links a { text-decoration: none; font-size: var(--text-sm); padding: var(--space-1) 0; }
+/* .navlink is class-based (not tag-based like the mockup's `button.navlink`)
+   so the same rule covers real <a> nav links here, not just <button>s --
+   real pages navigate via actual URLs, not JS-toggled view state. */
+.nav-links .navlink, .nav-desktop .navlink {
+  background: none; border: none; font: inherit; color: var(--color-accent);
+  cursor: pointer; padding: var(--space-1) 0; text-align: left;
+  text-decoration: none;
+}
+.nav-links [aria-current="page"], .nav-desktop [aria-current="page"] { color: var(--color-text); font-weight: 700; text-decoration: underline; }
+
+/* Two separate nav renderings instead of trying to force a <details> open via
+   CSS alone — a details element's content stays natively hidden unless it has
+   the `open` attribute, regardless of `display` overrides on its ancestors. */
+.nav-mobile { display: block; }
+.nav-desktop-wrap { display: none; }
+.nav-desktop {
+  gap: var(--space-5);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+@media (min-width: 640px) {
+  .nav-mobile { display: none; }
+  .nav-desktop-wrap { display: block; }
+  .nav-desktop { display: flex; }
+  .nav-desktop a, .nav-desktop .navlink { padding: 0; }
+}
+
+.theme-toggle {
+  font-size: var(--text-sm);
+  border: 1px solid var(--color-border-ui);
+  background: var(--color-bg);
+  color: var(--color-text);
+  border-radius: 4px;
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+}
+
+.breadcrumb {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-5);
+}
+.breadcrumb a, .breadcrumb button {
+  color: var(--color-text-muted);
+  background: none; border: none; font: inherit; cursor: pointer; padding: 0;
+  text-decoration: underline;
+}
+.breadcrumb a:hover, .breadcrumb button:hover { color: var(--color-accent); }
+.breadcrumb .sep { margin: 0 var(--space-2); }
+.breadcrumb [aria-current="page"] { color: var(--color-text); font-weight: 600; }
+
+.index-list { list-style: none; margin: 0; padding: 0; }
+.index-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-4);
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--color-border-decorative);
+}
+.index-list li:first-child { padding-top: 0; }
+.index-list .count { font-size: var(--text-sm); color: var(--color-text-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.index-list .sub { display: block; font-size: var(--text-sm); color: var(--color-text-muted); margin-top: var(--space-1); }
+.index-list a { font-weight: 600; color: var(--color-text); text-decoration: none; }
+.index-list a:hover { color: var(--color-accent); }
+
+.search-form { display: flex; gap: var(--space-2); margin-bottom: var(--space-6); }
+.search-form input {
+  flex: 1;
+  font-size: var(--text-base);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border-ui);
+  border-radius: 4px;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+.btn {
+  font-size: var(--text-base);
+  padding: var(--space-3) var(--space-5);
+  border: 1px solid var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-accent-on);
+  border-radius: 4px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+.btn.btn-secondary {
+  background: var(--color-bg);
+  color: var(--color-accent);
+}
+
+.post-list { list-style: none; margin: 0; padding: 0; }
+.post-list li {
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--color-border-decorative);
+}
+.post-list li:first-child { padding-top: 0; }
+.post-title { font-weight: 600; color: var(--color-text); }
+a.post-title { text-decoration: none; }
+a.post-title:hover { color: var(--color-accent); }
+.post-meta { display: block; font-size: var(--text-sm); color: var(--color-text-muted); margin-top: var(--space-1); }
+
+.byline { color: var(--color-text-muted); font-size: var(--text-sm); margin: 0 0 var(--space-5); }
+.byline strong { color: var(--color-text); font-weight: 600; }
+
+.context-strip {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-decorative);
+  border-radius: 4px;
+  padding: var(--space-4);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.post-body { max-width: 65ch; }
+.post-body p { margin: 0 0 var(--space-4); }
+
+.attachment-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border-decorative);
+  border-radius: 4px;
+  margin-bottom: var(--space-2);
+  font-size: var(--text-sm);
+}
+.attachment-row .filename { font-weight: 600; flex: 1; }
+
+.thread-post {
+  border: 1px solid var(--color-border-decorative);
+  border-left: 3px solid var(--color-border-decorative);
+  border-radius: 4px;
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+.thread-post.is-current { border-left-color: var(--color-accent); }
+
+.results-status { font-size: var(--text-sm); color: var(--color-text-muted); margin-bottom: var(--space-4); }
+.result-item { padding: var(--space-4) 0; border-bottom: 1px solid var(--color-border-decorative); }
+.result-item:first-child { padding-top: 0; }
+.result-snippet { color: var(--color-text-muted); font-size: var(--text-sm); margin-top: var(--space-2); }
+mark { background: color-mix(in srgb, var(--color-accent) 25%, transparent); color: inherit; padding: 0 0.1em; }
+
+dialog {
+  border: 1px solid var(--color-border-ui);
+  border-radius: 6px;
+  max-width: 480px;
+  width: 90vw;
+  padding: var(--space-5);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+dialog::backdrop { background: rgba(0,0,0,0.5); }
+dialog h2 { margin-top: 0; }
+dialog .dialog-actions { margin-top: var(--space-5); text-align: right; }
+
+footer.site-footer {
+  border-top: 1px solid var(--color-border-decorative);
+  margin-top: var(--space-8);
+}
+.footer-inner {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-5);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  justify-content: center;
+  text-align: center;
+}
+.footer-inner a { color: var(--color-text-muted); text-decoration: none; font-weight: 600; }
+.footer-inner a:hover { color: var(--color-accent); }
+
+.disclaimer-block {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-decorative);
+  border-radius: 4px;
+  padding: var(--space-4) var(--space-5);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin: var(--space-5) 0;
+}

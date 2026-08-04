@@ -1,0 +1,102 @@
+{% import "components/nav-items.njk" as navMacro %}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ title or site.title }}</title>
+<meta name="description" content="{{ description or site.description }}">
+<link rel="canonical" href="{{ site.url }}{{ page.url }}">
+<meta property="og:title" content="{{ title or site.title }}">
+<meta property="og:description" content="{{ description or site.description }}">
+<meta property="og:type" content="website">
+<meta property="og:url" content="{{ site.url }}{{ page.url }}">
+<meta name="twitter:card" content="summary">
+<link rel="stylesheet" href="{{ '/css/tokens.css' | url }}">
+<link rel="stylesheet" href="{{ '/css/base.css' | url }}">
+<link rel="stylesheet" href="{{ '/css/components.css' | url }}">
+<script>
+  // FOUC prevention: read the user's stored theme override, if any, and
+  // stamp it on <html> before first paint -- this has to run blocking, in
+  // <head>, or the page flashes the wrong theme for a frame. Only reads
+  // localStorage/sets an attribute; the click handler itself lives in the
+  // deferred site/js/theme-toggle.js, which doesn't need to run this early.
+  (function () {
+    try {
+      var stored = localStorage.getItem('theme');
+      if (stored === 'dark' || stored === 'light') {
+        document.documentElement.setAttribute('data-theme', stored);
+      }
+    } catch (e) {}
+  })();
+</script>
+</head>
+<body>
+
+<a class="skip-link" href="#main-content">Skip to content</a>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a class="site-name" href="{{ '/' | url }}">
+      <svg class="brand-mark" viewBox="0 0 48 48" width="36" height="36" aria-hidden="true" focusable="false">
+        <g stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="24" y1="24" x2="24" y2="4" transform="rotate(0 24 24)"></line>
+          <line x1="24" y1="24" x2="24" y2="11" transform="rotate(22.5 24 24)"></line>
+          <line x1="24" y1="24" x2="24" y2="4" transform="rotate(45 24 24)"></line>
+          <line x1="24" y1="24" x2="24" y2="11" transform="rotate(67.5 24 24)"></line>
+          <line x1="24" y1="24" x2="24" y2="4" transform="rotate(90 24 24)"></line>
+          <line x1="24" y1="24" x2="24" y2="11" transform="rotate(112.5 24 24)"></line>
+          <line x1="24" y1="24" x2="24" y2="4" transform="rotate(135 24 24)"></line>
+          <line x1="24" y1="24" x2="24" y2="11" transform="rotate(157.5 24 24)"></line>
+          <line x1="24" y1="24" x2="24" y2="4" transform="rotate(180 24 24)"></line>
+          <line x1="24" y1="24" x2="24" y2="11" transform="rotate(202.5 24 24)"></line>
+          <line x1="24" y1="24" x2="24" y2="4" transform="rotate(225 24 24)"></line>
+          <line x1="24" y1="24" x2="24" y2="11" transform="rotate(247.5 24 24)"></line>
+          <line x1="24" y1="24" x2="24" y2="4" transform="rotate(270 24 24)"></line>
+          <line x1="24" y1="24" x2="24" y2="11" transform="rotate(292.5 24 24)"></line>
+          <line x1="24" y1="24" x2="24" y2="4" transform="rotate(315 24 24)"></line>
+          <line x1="24" y1="24" x2="24" y2="11" transform="rotate(337.5 24 24)"></line>
+        </g>
+        <circle cx="24" cy="24" r="3.5" fill="currentColor"></circle>
+      </svg>
+      <span class="site-name-text">{{ site.title }}<span>{{ site.subtitle }}</span></span>
+    </a>
+    <div class="header-actions">
+      <nav class="nav-mobile" aria-label="Primary, compact menu">
+        <details class="nav-disclosure">
+          <summary>Menu</summary>
+          <ul class="nav-links">
+            {{ navMacro.navItems(nav, page.url) }}
+          </ul>
+        </details>
+      </nav>
+      <nav class="nav-desktop-wrap" aria-label="Primary">
+        <ul class="nav-desktop">
+          {{ navMacro.navItems(nav, page.url) }}
+        </ul>
+      </nav>
+      <button class="theme-toggle" id="theme-toggle" type="button" aria-pressed="false">🌓 Theme</button>
+    </div>
+  </div>
+</header>
+
+<main id="main-content">
+  {% if breadcrumb %}
+  <nav class="breadcrumb" aria-label="Breadcrumb, {{ breadcrumb[breadcrumb.length - 1].label }}">
+    {% for crumb in breadcrumb %}
+      {% if not loop.last %}<a href="{{ crumb.url | url }}">{{ crumb.label }}</a><span class="sep">›</span>{% else %}<span aria-current="page">{{ crumb.label }}</span>{% endif %}
+    {% endfor %}
+  </nav>
+  {% endif %}
+
+  {{ content | safe }}
+</main>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <a href="{{ '/help/#takedown' | url }}">Notice &amp; takedown policy</a>
+  </div>
+</footer>
+
+<script src="{{ '/js/theme-toggle.js' | url }}"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+---
+layout: layouts/base.njk
+pagination:
+  data: posts.threadsList
+  size: 1
+  alias: thread
+permalink: "/threads/{{ thread.id }}/"
+---
+<h1>Thread: {{ posts.byId.get(thread.id).subject }}</h1>
+<p class="lede">{{ thread.posts.length }} post{{ "s" if thread.posts.length != 1 }}.</p>
+
+{% for post in thread.posts %}
+<div class="thread-post" id="post-{{ post.id }}">
+  <p class="byline"><a href="{{ ('/posts/' + post.id + '/') | url }}"><strong>{{ post.author.display_name }}</strong></a> · <time datetime="{{ post.date_utc }}" title="{{ post.date_original }}">{{ post.date_utc | formatDate }}</time></p>
+  <div class="post-body">{{ post.body_html | safe }}</div>
+</div>
+{% endfor %}

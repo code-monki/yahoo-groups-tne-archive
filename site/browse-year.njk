@@ -1,0 +1,21 @@
+---
+layout: layouts/base.njk
+pagination:
+  data: posts.years
+  size: 1
+  alias: year
+permalink: "/browse/{{ year }}/"
+---
+{% set yearData = posts.byYear.get(year) %}
+<h1>{{ year }} · {{ yearData.posts.length }} post{{ "s" if yearData.posts.length != 1 }}</h1>
+
+<ul class="index-list">
+  {% for month in yearData.monthsList %}
+  <li>
+    <div>
+      <a href="{{ ('/browse/' + year + '/' + month.month + '/') | url }}">{{ month.month | monthName }}</a>
+    </div>
+    <span class="count">{{ month.posts.length }} post{{ "s" if month.posts.length != 1 }}</span>
+  </li>
+  {% endfor %}
+</ul>

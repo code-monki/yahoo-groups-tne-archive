@@ -1,0 +1,23 @@
+---
+layout: layouts/base.njk
+permalink: "/authors/"
+title: "Authors"
+description: "Every participant in the Traveller_TNE archive, ranked by post count."
+breadcrumb:
+  - label: "Home"
+    url: "/"
+  - label: "Authors"
+---
+<h1>Authors</h1>
+<p class="lede">Ranked by post count. {{ posts.authors.length }} authors, {{ posts.all.length }} posts total.</p>
+
+<ul class="index-list">
+  {% for author in posts.authors %}
+  <li>
+    <div>
+      <a href="{{ ('/authors/' + author.slug + '/') | url }}">{{ author.displayName }}</a>
+    </div>
+    <span class="count">{{ author.posts.length }} post{{ "s" if author.posts.length != 1 }}</span>
+  </li>
+  {% endfor %}
+</ul>

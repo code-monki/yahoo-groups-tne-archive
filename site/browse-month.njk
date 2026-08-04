@@ -1,0 +1,18 @@
+---
+layout: layouts/base.njk
+pagination:
+  data: posts.monthsList
+  size: 1
+  alias: monthData
+permalink: "/browse/{{ monthData.year }}/{{ monthData.month }}/"
+---
+<h1>{{ monthData.month | monthName }} {{ monthData.year }} · {{ monthData.posts.length }} post{{ "s" if monthData.posts.length != 1 }}</h1>
+
+<ul class="post-list">
+  {% for post in monthData.posts %}
+  <li>
+    <a class="post-title" href="{{ ('/posts/' + post.id + '/') | url }}">{{ post.subject }}</a>
+    <span class="post-meta">{{ post.author.display_name }} · {{ post.date_utc | formatDate }}</span>
+  </li>
+  {% endfor %}
+</ul>

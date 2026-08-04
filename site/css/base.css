@@ -1,0 +1,55 @@
+/* Element defaults and layout primitives, not tied to any one component. */
+
+* { box-sizing: border-box; }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.plain-list { list-style: none; margin: 0; padding: 0; }
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: var(--text-base);
+  line-height: 1.55;
+}
+
+/* Discrete-unit links (nav, logo, post titles, index entries) get their own
+   no-underline treatment in components.css; this is the default for
+   anything genuinely inline within a sentence of prose (ui-design.md §5) --
+   not relying on color alone to signal interactivity (WCAG 1.4.1). */
+a { color: var(--color-accent); text-underline-offset: 0.15em; }
+a:not(.btn) { text-decoration: underline; }
+
+:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--color-accent);
+  color: var(--color-accent-on);
+  padding: var(--space-2) var(--space-4);
+  z-index: 100;
+}
+.skip-link:focus { left: var(--space-4); top: var(--space-2); }
+
+main { max-width: var(--content-width); margin: 0 auto; padding: var(--space-6) var(--space-5) var(--space-8); }
+
+h1 { font-size: var(--text-xl); text-wrap: balance; margin: 0 0 var(--space-2); }
+h2 { font-size: var(--text-lg); text-wrap: balance; margin: var(--space-6) 0 var(--space-3); }
+
+.lede { color: var(--color-text-muted); margin: 0 0 var(--space-6); max-width: 65ch; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .theme-toggle, .btn, a { transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease; }
+}

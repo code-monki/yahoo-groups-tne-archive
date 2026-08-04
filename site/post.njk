@@ -1,0 +1,40 @@
+---
+layout: layouts/base.njk
+pagination:
+  data: posts.all
+  size: 1
+  alias: post
+permalink: "/posts/{{ post.id }}/"
+---
+<h1>{{ post.subject }}</h1>
+<p class="byline">Posted by <strong>{{ post.author.display_name }}</strong>{% if post.author.profile_handle %} ({{ post.author.profile_handle }}){% endif %} · <time datetime="{{ post.date_utc }}" title="{{ post.date_original }}">{{ post.date_utc | formatDate }}</time></p>
+
+<div class="context-strip">
+  <span>Part of thread: <a href="{{ ('/threads/' + post.thread_id + '/') | url }}">{{ posts.byId.get(post.thread_id).subject }}</a> · {{ post.reply_ids.length }} repl{{ "y" if post.reply_ids.length == 1 else "ies" }}</span>
+  {% if post.parent_id and posts.byId.get(post.parent_id) %}
+  {% set parent = posts.byId.get(post.parent_id) %}
+  <span>↳ In reply to <a href="{{ ('/posts/' + parent.id + '/') | url }}">{{ parent.subject }}</a> — {{ parent.author.display_name }}</span>
+  {% endif %}
+  {% for replyId in post.reply_ids %}
+  {% set reply = posts.byId.get(replyId) %}
+  {% if reply %}<span>↳ <a href="{{ ('/posts/' + reply.id + '/') | url }}">{{ reply.subject }}</a> — {{ reply.author.display_name }}</span>{% endif %}
+  {% endfor %}
+</div>
+
+<div class="post-body">{{ post.body_html | safe }}</div>
+
+{% if post.attachments.length %}
+<h2>Attachments</h2>
+{% for attachment in post.attachments %}
+<div class="attachment-row">
+  <span class="filename">{{ attachment.filename }}</span>
+  {% if post.id | attachmentAvailable(attachment.filename) %}
+  <a class="btn btn-secondary" href="{{ ('/attachments/' + post.id + '/' + attachment.filename) | url }}">Download</a>
+  {% else %}
+  <button class="btn btn-secondary" type="button" data-open-attachment-modal>Attachment unavailable</button>
+  {% endif %}
+</div>
+{% endfor %}
+{% include "components/modal.njk" %}
+<script src="{{ '/js/attachment-modal.js' | url }}"></script>
+{% endif %}
