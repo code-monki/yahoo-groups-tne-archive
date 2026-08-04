@@ -368,14 +368,34 @@ def scrub_email_addresses(text: str) -> str:
 # escaped "&gt;" in body_html) and numbered-footnote references ("[4]")
 # that can land there when this header overlaps a "Links:"-style footer
 # (defect #16) in the same quoted block.
+
+# The gap between "To:" and "CC:" is safely bounded by "CC:" as a literal,
+# unambiguous anchor -- however much junk a greedy character class eats,
+# it still has to stop exactly where the real "CC:" text is. The gap
+# *after* "CC:" has no such anchor, which is exactly what a synthetic
+# multi-level-nesting test caught (a concern the user raised, checking
+# this fix would actually scale rather than assuming it does): the same
+# unbounded-character-class approach applied there greedily consumed the
+# leading quote marker off the *next* header's or the genuinely quoted
+# reply's own first line the moment that line happened to start with the
+# same characters ("> Don't do that..." lost its "> ", confirmed against
+# the real archive, post 7234, already deployed with this bug). Fixed by
+# only ever consuming *complete lines* that are entirely junk (whitespace/
+# quote-markers/footnote-brackets, nothing else) -- a line with real
+# content after its quote marker fails to match "entirely junk" and is
+# correctly left alone, quote marker included.
+_JUNK_LINE_TEXT = r"[ \t]*(?:>[ \t]*)*(?:\[\d+\][ \t]*)*\n"
+_JUNK_TOKEN_HTML = r"(?:&gt;|&lt;|<a>\s*</a>|\[\d+\])"
+_JUNK_LINE_HTML = rf"[ \t]*(?:{_JUNK_TOKEN_HTML}[ \t]*)*<br\s*/?>"
+
 _ORIGINAL_MESSAGE_TEXT_RE = re.compile(
     r"-------- Original message --------\s*Subject:\s*(?P<subject>.*?)\s*From:\s*(?P<from>.*?)"
-    r"\s*To:[\s<>\[\]0-9]*CC:[\s<>\[\]0-9]*",
+    rf"\s*To:[\s<>\[\]0-9]*CC:(?:{_JUNK_LINE_TEXT})*",
     re.DOTALL,
 )
 _ORIGINAL_MESSAGE_HTML_RE = re.compile(
     r"-------- Original message --------\s*Subject:\s*(?P<subject>.*?)\s*From:\s*(?P<from>.*?)"
-    r"\s*To:(?:[\s>\[\]0-9]|&gt;|&lt;|<br\s*/?>|<a>\s*</a>)*CC:(?:[\s>\[\]0-9]|&gt;|&lt;|<br\s*/?>)*",
+    rf"\s*To:(?:[\s>\[\]0-9]|&gt;|&lt;|<br\s*/?>|<a>\s*</a>)*CC:(?:{_JUNK_LINE_HTML})*",
     re.DOTALL,
 )
 
