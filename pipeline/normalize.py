@@ -109,6 +109,17 @@ _BOILERPLATE_TEXT_MARKERS = (
     # against the real archive: 91/4060 posts, missed by the markers above
     # since those all target digest-specific boilerplate phrasing.
     "Yahoo! Groups Links",
+    # A third footer variant: some mail clients render the same per-message
+    # action bar as plain text, converting every link to a "[N]" reference
+    # with the actual URLs collected under a "Links:" heading -- found via
+    # user review of a real post, not the earlier sampling passes. 128/4060
+    # posts, confirmed zero false positives (every occurrence of "Links:"
+    # in the whole dataset is this exact footer, nothing else). Entirely
+    # dead content even when not stripped for PII reasons: numbered
+    # tracking-parameter-laden groups.yahoo.com URLs to a service that no
+    # longer exists, and orphaned "mailto:" fragments left over once
+    # scrub_email_addresses removes the actual address.
+    "Links:",
 )
 
 _ALLOWED_TAGS = {
@@ -281,10 +292,44 @@ _EMAIL_ENCODED_RE = re.compile(r"[A-Za-z0-9._\-]+%40[A-Za-z0-9.\-]+\.[A-Za-z]{2,
 # text nodes (a <wbr> or <br> inside the domain, the same wrapping
 # data-structures.md already noted for long URLs), that separator turns the
 # wrap into a literal newline sitting inside the address, splitting it
-# before either regex above ever sees a contiguous match. This tolerates
-# whitespace/newlines around the "@"/"%40" marker and around each dot.
+# before either regex above ever sees a contiguous match.
+#
+# An earlier version of this regex only tolerated whitespace immediately
+# around the "@"/"%40" marker and around each dot -- correct for <wbr>,
+# which Yahoo only ever inserted at those specific points. Confirmed
+# against the real archive (live site, found via manual review): quoted
+# plain-text mail instead hard-wraps at a fixed column, breaking mid-word
+# with no punctuation anywhere near the break --
+# "starwolf@travellerf\nreeport.com", "digest@yahoogrou\nps.com" -- which
+# the old pattern could not see at all, leaving real, live email addresses
+# unscrubbed (224 matches across the dataset, including personal addresses,
+# not just Yahoo's own list-management aliases). Two different break
+# styles are tolerated, deliberately not the same pattern, to avoid a
+# worse problem than the one being fixed: an early version that allowed
+# *any* whitespace, unlimited times, anywhere in the local-part/domain
+# mangled ordinary prose too -- "look @ the example.com website" was
+# swallowed whole as if "look" through "example.com" were one address,
+# since bare spaces between separate real words satisfied the same
+# pattern a genuine line-wrap does. The two real cases need different
+# tolerance:
+#   - Immediately around "@" and each "." -- old-school manual
+#     anti-harvester obfuscation ("name @ domain . com") has no newline
+#     at all, confirmed against the real archive ("martin.tajmar @
+#     arcs.ac.at"), so bare spaces/tabs are allowed here.
+#   - *Inside* a single local-part/domain-label token -- only a genuine
+#     line-wrap does this, and a line-wrap always inserts an actual
+#     newline (optionally followed by a quoted-reply "> " marker on the
+#     continuation line), never a bare space; requiring the newline is
+#     what keeps ordinary space-separated prose from being swept in.
+#     Capped at one such break per token -- a real wrap splits a token
+#     once, not repeatedly.
+_PUNCT_BREAK = r"[ \t]*(?:\n[ \t]*(?:>[ \t]*)?)?"
+_MIDTOKEN_BREAK = r"\n[ \t]*(?:>[ \t]*)?"
+_LOCAL_RUN = rf"[A-Za-z0-9._%+\-]+(?:{_MIDTOKEN_BREAK}[A-Za-z0-9._%+\-]+)?"
+_DOMAIN_LABEL_RUN = rf"[A-Za-z0-9\-]+(?:{_MIDTOKEN_BREAK}[A-Za-z0-9\-]+)?"
 _EMAIL_LOOSE_RE = re.compile(
-    r"[A-Za-z0-9._\-]+\s*(?:@|%40)\s*[A-Za-z0-9\-]+(?:\s*\.\s*[A-Za-z0-9\-]+)*\s*\.\s*[A-Za-z]{2,}"
+    rf"{_LOCAL_RUN}{_PUNCT_BREAK}(?:@|%40){_PUNCT_BREAK}{_DOMAIN_LABEL_RUN}"
+    rf"(?:{_PUNCT_BREAK}\.{_PUNCT_BREAK}{_DOMAIN_LABEL_RUN})*{_PUNCT_BREAK}\.{_PUNCT_BREAK}[A-Za-z]{{2,}}"
 )
 
 
@@ -297,7 +342,17 @@ def scrub_email_addresses(text: str) -> str:
     """
     text = _EMAIL_LOOSE_RE.sub("", text)
     text = _EMAIL_ENCODED_RE.sub("", text)
-    return _EMAIL_RE.sub("", text).strip()
+    text = _EMAIL_RE.sub("", text)
+    # What's left after the substitutions above is never a real address --
+    # by construction, any actual address matching this literal "mailto:"
+    # prefix was already removed along with it. Found via manual review:
+    # 341/4060 posts carry Outlook's "-----Original Message-----\nFrom: X
+    # [mailto:]On Behalf Of Y" quote-header convention, where scrubbing the
+    # address correctly leaves the orphaned "mailto:" label behind with
+    # nothing after it -- inert, meaningless text on its own, not a privacy
+    # concern anymore but still worth not showing.
+    text = re.sub(r"\bmailto:\s*", "", text)
+    return text.strip()
 
 
 def scrub_author_display_name(name: str) -> str:

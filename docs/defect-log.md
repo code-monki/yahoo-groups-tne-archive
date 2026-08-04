@@ -20,6 +20,9 @@ Entries found and fixed *during* implementation (i.e. before any `docs/test-plan
 | 12 | Major | 8 | Skip link scrolled to `<main>` but never moved actual keyboard focus there (WCAG 2.4.1) | Fixed |
 | 13 | Minor | 8 | One archived post's own real `<h3>` subheadings skipped a level under the page's `<h1>` (no `<h2>`) | Fixed |
 | 14 | Major | 9 | No `404.html` existed at all, despite hld.md §7 explicitly committing to one for the "help recognize/recover from errors" Nielsen heuristic | Fixed |
+| 15 | Critical | 9 (post-launch) | Email-scrubbing regex only tolerated whitespace next to punctuation, missing addresses hard-wrapped mid-word by quoted plain-text mail — 224 real, live email addresses (personal and list addresses) were unscrubbed and publicly deployed | Fixed |
+| 16 | Major | 9 (post-launch) | A third Yahoo footer variant ("Links:" plain-text reference list, dead tracking URLs) leaked into 128/4060 post bodies | Fixed |
+| 17 | Major | 9 (post-launch) | Orphaned literal "mailto:" label text (address already scrubbed, prefix left behind) remained in 341/4060 post bodies | Fixed |
 
 ---
 
@@ -190,6 +193,42 @@ Entries found and fixed *during* implementation (i.e. before any `docs/test-plan
 **Fix:** Added `site/404.njk` (`permalink: /404.html`, matching GitHub Pages' convention for a project site's custom 404), using the shared layout, with a search form and a link back to Home.
 
 **Verified:** Builds to `_site/404.html`; renders correctly with full site chrome (nav, theme toggle, footer).
+
+## 15. Live, unscrubbed email addresses (DR-4/ADR-0008 violation)
+
+**Severity:** Critical — the most severe finding in this project. Real people's email addresses were present in `data/posts.json` and rendered on the publicly deployed site.
+
+**Found:** Post-launch, prompted by the user reviewing a post's "worthless"-looking link footer and asking whether some of the referenced ids resolved to real archived posts. While tracing that footer's content by hand, an email address (`Traveller_TNE-digest@yahoogroups.com`) turned up fully intact inside it, split across a line-wrap. That led to a targeted scan for the same pattern across the whole dataset.
+
+**Root cause:** `normalize.py`'s `_EMAIL_LOOSE_RE` was written to tolerate whitespace/newlines only immediately around the `@` symbol and around each `.` — correct for its original target (Yahoo's `<wbr>` insertion points, always placed at those specific spots) but blind to how quoted plain-text mail actually hard-wraps: at a fixed column, breaking **mid-word**, with no punctuation anywhere near the break (`starwolf@travellerf`\\n`reeport.com`, `digest@yahoogrou`\\n`ps.com`). A scan tolerant of arbitrary-position line breaks found 224 real matches across the dataset — genuine personal addresses (`starwolf@travellerfreeport.com` × 55, `kris@tactics-0.org` × 6, an editorial contact), not just Yahoo's own list-management aliases.
+
+**Fix, and a fix to the fix:** The first repair (allowing a break at *any* position in the local-part/domain, tolerating bare spaces) closed the leak but immediately proved too permissive — it started eating unrelated prose, e.g. "look @ the example.com website" was swallowed whole as if it were one address. Verified against a manually-obfuscated real case (`martin.tajmar @ arcs.ac.at`, spaced out with no newline at all) that a same-permissiveness-for-both fix would regress. Landed on two distinct tolerances: bare spaces are allowed only *immediately around* `@` and each `.` (covers manual anti-harvester spacing), while a break *inside* a single local-part/domain-label token is only recognized when it's an actual newline (covers real line-wraps) — capped at one such internal break per token. This distinction is what keeps ordinary space-separated sentences from being swept in while still catching both real-world cases.
+
+**Verified:** Re-ran the full ETL from raw source (not a re-scrub of already-processed JSON). Two independent scans — a strict contiguous-match regex and the newline/space-tolerant one that found the original 224 — both return 0 across `body_text`, `body_html`, `subject`, and `author.display_name` for all 4060 posts. Spot-checked every previously-leaking post for readability: real content intact, only the address itself removed. Full `make test` suite re-run clean (43 Playwright checks, both Lighthouse presets, 0 broken links across a 5838-link crawl) before redeploying.
+
+**Process note:** This is exactly the kind of defect the project's design explicitly anticipated and built process around (ADR-0008 exists because of it) — and it still shipped, because the original Phase 2 validation sampled digest-template HTML structure, not this specific plain-text mid-word-wrap failure mode, and no later phase re-swept the full corpus for it. Found only because a user, reviewing unrelated output, thought a footer "looked worthless" and asked a clarifying question rather than accepting it. Logged here in full rather than summarized, since a future maintainer changing this regex again needs the two-tolerance distinction, not just "it was broken, now it's fixed."
+
+## 16. A third Yahoo footer variant leaked into post bodies
+
+**Severity:** Major (dead tracking URLs, numbered list noise — not a privacy issue on its own, but discovered in the same investigation as #15).
+
+**Found:** Same investigation as #15 — the footer the user asked about was a plain-text "Links:\n------\n[1] ...\n[2] ..." reference-list rendering of Yahoo's per-message action bar (Reply/Reply to group/Message index/Members/Files/Group home/Yahoo home/Change delivery format/Digest/Unsubscribe/ToS), distinct from the two footer variants already fixed (#7, and the original digest-template markers from Phase 2).
+
+**Root cause:** `_BOILERPLATE_TEXT_MARKERS` had no entry matching this specific rendering. Confirmed zero false positives before adding it: every one of the 128 posts containing the literal string `"Links:"` anywhere in `body_text` has this exact footer immediately following, nothing else.
+
+**Fix:** Added `"Links:"` to `_BOILERPLATE_TEXT_MARKERS`.
+
+**Verified:** Re-ran ETL; 0/4060 posts retain the marker afterward (down from 128); spot-checked the real content immediately preceding the footer in the post that prompted this (7395) — fully intact.
+
+## 17. Orphaned "mailto:" label text
+
+**Severity:** Major (dead, meaningless text — the address portion was already being correctly removed by the pre-existing scrubber in all these cases; only the inert `mailto:` prefix itself was left behind).
+
+**Found:** Same investigation as #15/#16, following the user's specific observation that literal "mailto:" text in the output was "especially egregious." A scan for the literal substring turned up 341/4060 posts, mostly Outlook's `-----Original Message-----\nFrom: X [mailto:]On Behalf Of Y` quote-header convention, where the bracketed address had already been scrubbed, leaving `[mailto:]`.
+
+**Fix:** `scrub_email_addresses` now additionally strips any literal `mailto:` (plus trailing whitespace) remaining after address removal — safe unconditionally, since by construction anything still attached to that prefix was already caught by the address-matching passes that run first.
+
+**Verified:** Re-ran ETL; 0/4060 posts contain `"mailto:"` afterward (down from 341); spot-checked several for readability (e.g. `[mailto:]On Behalf Of DED` → `[]On Behalf Of DED`) -- surrounding quote-header text intact.
 
 ## Related but not logged as a defect: Pagefind's fuzzy matching has no reliable "no results" threshold
 
