@@ -6,6 +6,7 @@ module.exports = [
   { label: "Browse", url: "/browse/" },
   { label: "Authors", url: "/authors/" },
   { label: "Topics", url: "/topics/" },
+  { label: "Files", url: "/files/" },
   { label: "Search", url: "/search/" },
   { label: "Help", url: "/help/" },
 ];

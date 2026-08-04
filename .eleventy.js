@@ -25,6 +25,19 @@ module.exports = function (eleventyConfig) {
     [path.relative(__dirname, ATTACHMENTS_DIR)]: "attachments",
   });
 
+  // ADR-0018: the Files section is a distinct thing from post attachments
+  // (a shared group repository, not tied to one email) but uses the exact
+  // same build-time-presence-detection pattern -- same reasoning, same
+  // mechanism, just a second directory keyed by data/files.json's
+  // source_post_id instead of a post's own id.
+  const FILES_DIR = path.join(__dirname, "files");
+  eleventyConfig.addFilter("fileAvailable", function (sourcePostId, filename) {
+    return fs.existsSync(path.join(FILES_DIR, sourcePostId, filename));
+  });
+  eleventyConfig.addPassthroughCopy({
+    [path.relative(__dirname, FILES_DIR)]: "files",
+  });
+
   // Formats an ISO 8601 UTC date_utc value for display -- e.g. "Sun, Nov 16,
   // 2008". The <time datetime="..."> element's machine-readable value uses
   // date_utc directly (DR-3); this filter is only for the human-visible text.

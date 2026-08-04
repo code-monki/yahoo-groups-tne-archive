@@ -21,6 +21,7 @@ const PAGES = {
   "topics-index": "/topics/",
   "browse-year": "/browse/2012/",
   "browse-month": "/browse/2012/03/",
+  files: "/files/",
   search: "/search/",
   help: "/help/",
 };

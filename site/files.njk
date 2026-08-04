@@ -1,0 +1,36 @@
+---
+layout: layouts/base.njk
+permalink: "/files/"
+title: "Files"
+description: "Files uploaded to the Traveller_TNE Yahoo Group's shared Files section, separate from post attachments."
+breadcrumb:
+  - label: "Home"
+    url: "/"
+  - label: "Files"
+---
+<h1>Files</h1>
+<p class="lede">Yahoo Groups had a separate, shared Files section that people uploaded to directly — distinct from files attached to an individual post. It was never included in the email export this archive is built from, so most of what's listed here is still missing. If you have a copy of any of these, see the <a href="{{ '/help/#takedown' | url }}">Help page</a> for how to get in touch.</p>
+
+<ul class="post-list">
+  {% for file in files.all %}
+  <li>
+    <span class="post-title">{{ file.filename }}</span>
+    <span class="post-meta">
+      Uploaded by
+      {% if file.uploaderAuthor %}<a href="{{ ('/authors/' + file.uploaderAuthor.slug + '/') | url }}">{{ file.uploaderAuthor.displayName }}</a>{% else %}{{ file.uploader }}{% endif %}
+      · {{ file.uploaded_date_utc | formatDate }}
+      {% if file.description %}· {{ file.description }}{% endif %}
+    </span>
+    <div class="attachment-row">
+      {% if file.source_post_id | fileAvailable(file.filename) %}
+      <a class="btn btn-secondary" href="{{ ('/files/' + file.source_post_id + '/' + file.filename) | url }}">Download</a>
+      {% else %}
+      <button class="btn btn-secondary" type="button" data-open-attachment-modal>Not currently available</button>
+      {% endif %}
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+
+{% include "components/modal.njk" %}
+<script src="{{ '/js/attachment-modal.js' | url }}"></script>

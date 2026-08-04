@@ -30,6 +30,7 @@ logger = logging.getLogger("etl")
 REPO_ROOT = Path(__file__).parent.parent
 MBOX_PATH = REPO_ROOT / "mail_archives" / "YahooArchive"
 OUTPUT_PATH = REPO_ROOT / "data" / "posts.json"
+FILES_OUTPUT_PATH = REPO_ROOT / "data" / "files.json"
 
 # messageNum=<id> (from the ygrp-actbar "Reply" link's query string) is
 # THIS message's own id. The more obvious-looking groups.yahoo.com/.../
@@ -229,6 +230,14 @@ def run(mbox_path: Path = MBOX_PATH, output_path: Path = OUTPUT_PATH) -> list[di
 
     attachments_mod.find_files_section_candidates(all_posts)
 
+    # ADR-0018: the Files section (a shared group repository, distinct from
+    # per-post MIME attachments) has its own manifest, derived from Yahoo's
+    # own upload-notification emails -- computed here, before the post
+    # records below have their private threading fields stripped, though it
+    # only actually needs id/subject/source_kind/body_text/date_utc.
+    files_manifest = attachments_mod.extract_file_upload_notifications(all_posts)
+    files_manifest.sort(key=lambda f: f["uploaded_date_utc"])
+
     for post in all_posts:
         del post["_message_id"], post["_in_reply_to"], post["_references"]
 
@@ -237,6 +246,12 @@ def run(mbox_path: Path = MBOX_PATH, output_path: Path = OUTPUT_PATH) -> list[di
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(all_posts, indent=2, ensure_ascii=False), encoding="utf-8")
     logger.info("wrote %d posts to %s", len(all_posts), output_path)
+
+    FILES_OUTPUT_PATH.write_text(
+        json.dumps(files_manifest, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    logger.info("wrote %d files-section entries to %s", len(files_manifest), FILES_OUTPUT_PATH)
+
     return all_posts
 
 

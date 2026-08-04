@@ -18,6 +18,7 @@ const TEMPLATES = {
   "topics-index": "/topics/",
   "browse-year": "/browse/2012/",
   "browse-month": "/browse/2012/03/",
+  files: "/files/",
   search: "/search/",
   help: "/help/",
 };
@@ -245,5 +246,26 @@ test("TC-FUNC-15: footer takedown link on every template", async ({ page }) => {
     await page.goto(BASE + path);
     const link = page.locator('.footer-inner a[href*="/help/#takedown"]');
     await expect(link, path).toHaveCount(1);
+  }
+});
+
+// TC-FUNC-16 (ADR-0018): Files-section manifest renders completely, with
+// working available/unavailable states, mirroring FR-23/26/27's pattern
+// for post attachments.
+test("TC-FUNC-16: Files page lists the full manifest with correct availability", async ({ page }) => {
+  const files = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, "data", "files.json"), "utf-8"));
+  await page.goto(BASE + "/files/");
+  const rows = page.locator(".post-list > li");
+  await expect(rows).toHaveCount(files.length);
+
+  for (const file of files) {
+    const dir = path.join(REPO_ROOT, "files", file.source_post_id, file.filename);
+    const exists = fs.existsSync(dir);
+    const row = rows.filter({ hasText: file.filename }).first();
+    if (exists) {
+      await expect(row.locator("a.btn.btn-secondary")).toHaveCount(1);
+    } else {
+      await expect(row.locator("[data-open-attachment-modal]")).toHaveCount(1);
+    }
   }
 });

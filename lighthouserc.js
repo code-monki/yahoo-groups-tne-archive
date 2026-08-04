@@ -1,8 +1,9 @@
-// TC-PERF-01 (NFR-5): Lighthouse CI against the same 11 representative
+// TC-PERF-01 (NFR-5): Lighthouse CI against the same representative
 // templates (test-plan.md §2) the axe-core/Playwright suites use, not all
 // ~5830 generated pages -- same reasoning as test-plan.md §2 itself (all
 // posts/threads/authors/topics/browse-months share one template each, so
-// template-level coverage is what's meaningful).
+// template-level coverage is what's meaningful). Plus /files/ (ADR-0018),
+// a 12th template added post-launch.
 const FIXTURES = [
   "/index.html",
   "/posts/6835/index.html",
@@ -13,6 +14,7 @@ const FIXTURES = [
   "/topics/index.html",
   "/browse/2012/index.html",
   "/browse/2012/03/index.html",
+  "/files/index.html",
   "/search/index.html",
   "/help/index.html",
 ];
