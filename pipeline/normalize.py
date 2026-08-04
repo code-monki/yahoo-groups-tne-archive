@@ -222,6 +222,21 @@ def sanitize_body(html: str) -> tuple[str, str]:
     # have its entire content, marker included, deleted wholesale.
     _truncate_at_marker(root)
 
+    # A handful of source emails carry their own real heading markup (e.g.
+    # a Yahoo-authored "Understand what's changing" notice with <h3>
+    # subsections) -- confirmed against the real archive, one post. Every
+    # post page has exactly one <h1> (the subject, in post.njk/thread.njk),
+    # so any heading surviving from the body needs to start at <h2> or a
+    # screen reader's heading outline skips a level (WCAG 2.2 AA, NFR-3).
+    # Preserves relative nesting; only shifts the whole group as a unit.
+    body_headings = root.find_all(re.compile(r"^h[1-6]$"))
+    if body_headings:
+        min_level = min(int(h.name[1]) for h in body_headings)
+        shift = 2 - min_level
+        if shift != 0:
+            for h in body_headings:
+                h.name = f"h{max(2, min(6, int(h.name[1]) + shift))}"
+
     for tag in soup.find_all(True):
         # lxml's own <html>/<body> wrapper -- structural, not content; must
         # not be unwrapped or `root.contents` (still referencing the `body`

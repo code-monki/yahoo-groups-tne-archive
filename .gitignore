@@ -15,3 +15,6 @@ __pycache__/
 _site/
 .cache/
 _site/pagefind/
+
+# Playwright's own run artifacts (screenshots/traces on failure) — not source
+test-results/

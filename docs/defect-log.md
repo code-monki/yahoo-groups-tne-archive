@@ -14,6 +14,11 @@ Entries found and fixed *during* implementation (i.e. before any `docs/test-plan
 | 6 | Major | 6 | Search's "Load more results" button stayed visible after all results were shown | Fixed |
 | 7 | Major | 7 | Direct (non-digest) emails' Yahoo footer boilerplate ("Yahoo! Groups Links" etc.) leaked into 91/4060 post bodies | Fixed |
 | 8 | Critical | 7 | Fixing #7 caused 5 posts' real content to be deleted entirely (empty body) | Fixed |
+| 9 | Critical | 8 | `sitemap.xml` listed only 12 URLs instead of 5829 (one per paginated template, not all pages) | Fixed |
+| 10 | Major | 8 | `og:description` contained a literal newline, producing malformed HTML on posts with a matching body | Fixed |
+| 11 | Major | 8 | 7 digest posts had an empty author name, silently fragmenting one prolific poster's history into a spurious "unknown" author | Fixed |
+| 12 | Major | 8 | Skip link scrolled to `<main>` but never moved actual keyboard focus there (WCAG 2.4.1) | Fixed |
+| 13 | Minor | 8 | One archived post's own real `<h3>` subheadings skipped a level under the page's `<h1>` (no `<h2>`) | Fixed |
 
 ---
 
@@ -112,6 +117,66 @@ Entries found and fixed *during* implementation (i.e. before any `docs/test-plan
 **Fix:** `etl.py`'s new `_plain_text_to_html()` splits a plain-text body into one `<p>` per blank-line-separated paragraph (each individually HTML-escaped, which the old single-`<p>` fallback never did either — a latent, lower-severity gap in its own right, since a literal `<`/`&` in someone's plain-text message could previously have been misread as markup) before handing off to the same sanitize/truncate pipeline every other post goes through. This gives truncation a real paragraph boundary to cut the footer at without touching the paragraphs before it.
 
 **Verified:** Re-ran full ETL; 0 empty bodies, 0 posts with the marker text, and the specific previously-emptied post ("[Traveller_TNE] Low Tech Stuff") confirmed to retain its full multi-paragraph real content with only the footer removed.
+
+## 9. Sitemap only listed 12 URLs instead of 5829
+
+**Severity:** Critical (FR-20's core requirement — "listing every built page" — was violated by two orders of magnitude).
+
+**Found:** Phase 8, immediately after writing `sitemap.njk` and building — `grep -c "<loc>"` returned 12 against an expected 5829+.
+
+**Root cause:** Eleventy's `pagination.addAllPagesToCollections` defaults to `false`. Every one of the 6 paginated templates (post, thread, author, topic, browse-year, browse-month) was generating every real page correctly on disk, but only the *first* generated page of each was ever added to `collections.all` — which `sitemap.njk` iterates. The 12 that did appear were the 6 templates' first pagination item plus the 6 genuinely-static pages (home, authors-index, topics-index, browse-index, help, search).
+
+**Fix:** Added `addAllPagesToCollections: true` to all 6 templates' `pagination:` front matter.
+
+**Verified:** Sitemap URL count (5829) matches the independently-computed total (4060 posts + 725 threads + 183 authors + 730 topics + 16 years + 109 months + 6 static pages); validated as well-formed XML.
+
+## 10. Malformed `og:description` from an unescaped newline
+
+**Severity:** Major (invalid HTML — a `content="..."` attribute value spanning multiple raw lines — on any post whose first ~160 characters of body text cross a paragraph break).
+
+**Found:** Phase 8 TC-PERF-03 spot-check of 3 pages' `<head>` tags — post 6835's `og:description` visibly broke across multiple lines mid-attribute.
+
+**Root cause:** `post.11tydata.js`'s `truncate()` helper (introduced fixing defect #1/#2) cut `body_text` at a character offset without first collapsing whitespace, so a raw `\n` inside the truncated text landed directly inside the HTML attribute.
+
+**Fix:** `truncate()` now collapses all whitespace (including newlines) to single spaces before cutting.
+
+**Verified:** Rebuilt; scanned every post page's `content="..."` attributes for embedded newlines — 0 found (previously present on posts whose first paragraph was short).
+
+## 11. Empty author name fragmented one poster's history
+
+**Severity:** Major (FR-15's author index correctness — one real person's ~470 posts split across two apparent "authors," one of them an uninformative "unknown").
+
+**Found:** Phase 8 TC-A11Y-01 axe scan of `/authors/` — flagged a real defect underneath the accessibility symptom: `<a href="/authors/unknown/"></a>`, a link with no text at all.
+
+**Root cause:** `digest_parser.py`'s mailto-based author extraction had no fallback when both the text before a `Posted by:` mailto link and the mailto link's own inner text were empty (a genuine gap in Yahoo's own rendering for 7 entries, all from the "modern topics" template era). `_parse_name_and_handle` received an empty string and produced an empty display name, which `site/_data/posts.js` then slugified to the fallback `"unknown"`.
+
+**Fix:** When both text sources are empty, `digest_parser.py` now falls back to the local part of the mailto address itself (e.g. `dcndcn13` from `dcndcn13@bbtel.com`) — the same style of fallback display name already used elsewhere in this archive for accounts with no display name set.
+
+**Verified:** Re-ran full ETL; 0 posts with an empty author name; the affected posts now correctly resolve to the existing `dcndcn13` author (1 post) and an existing `Traveller_TNE` shared-address author (6 posts) rather than a synthetic "unknown" bucket. Total author count changed from 184 to 183 (the standalone "unknown" page no longer exists; no page lost, since both real identities already had pages).
+
+## 12. Skip link didn't move keyboard focus
+
+**Severity:** Major (WCAG 2.2 AA 2.4.1 "Bypass Blocks" — the link visually worked (scrolled) but a screen reader or keyboard-only user's actual focus position, and therefore their next Tab stop, stayed wherever it was before activating the link).
+
+**Found:** Phase 8 TC-A11Y-02 keyboard-walkthrough test — activating the skip link and checking `document.activeElement.id` returned empty instead of `"main-content"`.
+
+**Root cause:** `<main id="main-content">` in `base.njk` had no `tabindex`, and only elements that are natively focusable or carry an explicit `tabindex` actually receive DOM focus when a same-page anchor link targets them — browsers still scroll to an unfocusable target, which is why this looked correct visually.
+
+**Fix:** Added `tabindex="-1"` to the `<main>` element (focusable via script/fragment-navigation only, not a new stop in normal Tab order).
+
+**Verified:** Playwright: pressing Tab then Enter on the skip link now moves `document.activeElement` to `#main-content`.
+
+## 13. One archived post's real subheadings skipped a level
+
+**Severity:** Minor (isolated to 2 of 5829 pages — a post and its thread view — and is genuine archived content, not user-facing chrome).
+
+**Found:** Phase 8 TC-A11Y-03 site-wide heading-structure crawl (all 5829 built pages, parsed directly rather than via a browser) — post 12244 (a Yahoo-authored "Understand what's changing in Yahoo Groups" notice) jumped from the page's own `<h1>` straight to `<h3>`, with no `<h2>` anywhere on the page.
+
+**Root cause:** The original email's own HTML included real `<h3>` subsection headings, preserved as-is by `sanitize_body`'s allow-list — correct in isolation, but every post page already has exactly one `<h1>` (the subject), so body content needs to start no higher than `<h2>` to avoid a level skip. Confirmed this is the only occurrence in the entire archive (`grep` of every post's `body_html` for any heading tag found exactly these 2 `<h3>`s and nothing else, no `<h1>`/`<h2>`/`<h4>`+ anywhere).
+
+**Fix:** `sanitize_body` now remaps any heading level surviving in body content so the shallowest one present becomes `<h2>`, shifting the rest by the same amount to preserve relative nesting.
+
+**Verified:** Site-wide crawl re-run after the fix: 0 pages with a heading-level skip (down from 2), 0 pages with other than exactly one `<h1>`, 0 `<img>` missing `alt` — across all 5829 pages, not just the 11-template sample.
 
 ## Related but not logged as a defect: Pagefind's fuzzy matching has no reliable "no results" threshold
 

@@ -4,6 +4,7 @@ pagination:
   data: posts.years
   size: 1
   alias: year
+  addAllPagesToCollections: true
 permalink: "/browse/{{ year }}/"
 ---
 {% set yearData = posts.byYear.get(year) %}

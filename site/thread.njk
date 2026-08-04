@@ -4,6 +4,7 @@ pagination:
   data: posts.threadsList
   size: 1
   alias: thread
+  addAllPagesToCollections: true
 permalink: "/threads/{{ thread.id }}/"
 ---
 <h1>Thread: {{ posts.byId.get(thread.id).subject }}</h1>

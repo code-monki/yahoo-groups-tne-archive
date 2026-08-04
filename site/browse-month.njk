@@ -4,6 +4,7 @@ pagination:
   data: posts.monthsList
   size: 1
   alias: monthData
+  addAllPagesToCollections: true
 permalink: "/browse/{{ monthData.year }}/{{ monthData.month }}/"
 ---
 <h1>{{ monthData.month | monthName }} {{ monthData.year }} · {{ monthData.posts.length }} post{{ "s" if monthData.posts.length != 1 }}</h1>

@@ -4,6 +4,7 @@ pagination:
   data: posts.topics
   size: 1
   alias: topic
+  addAllPagesToCollections: true
 permalink: "/topics/{{ topic.slug }}/"
 ---
 <h1>{{ topic.subject }} · {{ topic.posts.length }} post{{ "s" if topic.posts.length != 1 }}</h1>

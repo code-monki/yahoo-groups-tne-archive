@@ -97,7 +97,7 @@ def _parse_name_and_handle(text: str) -> tuple[str, str | None]:
 
 _POSTED_BY_RE = re.compile(r"Posted by:", re.IGNORECASE)
 _ANCHOR_RE = re.compile(r'<a\b[^>]*href="([^"]*)"[^>]*>(.*?)</a>', re.IGNORECASE | re.DOTALL)
-_MAILTO_RE = re.compile(r'<a\b[^>]*href="mailto:[^"]*"[^>]*>(.*?)</a>', re.IGNORECASE | re.DOTALL)
+_MAILTO_RE = re.compile(r'<a\b[^>]*href="mailto:([^"?]*)[^"]*"[^>]*>(.*?)</a>', re.IGNORECASE | re.DOTALL)
 _PROFILE_RE = re.compile(r'<a\b[^>]*href="[^"]*profiles\.yahoo\.com/([^"?]+)[^"]*"', re.IGNORECASE)
 
 
@@ -229,8 +229,19 @@ def extract_digest_posts(html: str) -> list[DigestPost]:
             # *inside* the link's own text instead, with nothing meaningful
             # before it. Try the former first, fall back to the latter.
             pre_mailto_text = _strip_tags(author_zone[:mailto_match.start()])
-            mailto_inner_text = _strip_tags(mailto_match.group(1))
-            candidate_text = pre_mailto_text or mailto_inner_text
+            mailto_inner_text = _strip_tags(mailto_match.group(2))
+            # Confirmed against the real archive: a handful of "modern
+            # topics" template entries have a genuinely empty name span
+            # inside the mailto link (Yahoo's own rendering, not our
+            # extraction) with no plain text before it either -- e.g. seven
+            # of the archive's most prolific poster's own digest-derived
+            # posts, which would otherwise silently fork into a second,
+            # blank-named "author" distinct from their ~470 other posts.
+            # The mailto address's local part is the same fallback display
+            # name Yahoo itself uses elsewhere in this archive when no
+            # display name was set, so it's a consistent choice here too.
+            email_local_part = mailto_match.group(1).split("@", 1)[0]
+            candidate_text = pre_mailto_text or mailto_inner_text or email_local_part
         else:
             candidate_text = _strip_tags(author_zone.split("<h4", 1)[0])
 

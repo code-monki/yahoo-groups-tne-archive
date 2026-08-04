@@ -4,6 +4,7 @@ pagination:
   data: posts.authors
   size: 1
   alias: author
+  addAllPagesToCollections: true
 permalink: "/authors/{{ author.slug }}/"
 ---
 <h1>{{ author.displayName }} · {{ author.posts.length }} post{{ "s" if author.posts.length != 1 }}</h1>

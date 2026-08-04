@@ -16,9 +16,15 @@
 // JS functions here sidestep both: they return fresh values per page and
 // are only ever rendered once, by the layout.
 function truncate(text, length) {
-  if (text.length <= length) return text;
-  const cut = text.lastIndexOf(" ", length);
-  return text.slice(0, cut === -1 ? length : cut) + "...";
+  // Collapse whitespace (including newlines) before cutting -- body_text
+  // is real multi-paragraph message content, and a raw newline landing
+  // inside the truncated result breaks the og:description meta tag's
+  // content="..." attribute across multiple lines (confirmed against the
+  // real build, post 6835).
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (normalized.length <= length) return normalized;
+  const cut = normalized.lastIndexOf(" ", length);
+  return normalized.slice(0, cut === -1 ? length : cut) + "...";
 }
 
 module.exports = {
