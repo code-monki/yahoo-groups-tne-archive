@@ -2,6 +2,20 @@
 
 * { box-sizing: border-box; }
 
+/* The [hidden] attribute is the correct native mechanism for toggling
+   visibility (accessible by default, no extra ARIA needed) -- but the
+   browser's own `[hidden] { display: none }` rule lives in the lowest-
+   priority (user-agent) stylesheet, so any of our own `display`-setting
+   component rules (e.g. .btn's `display: inline-block`, loaded after this
+   file) win the cascade at equal specificity by source order alone.
+   Confirmed against the real build: the search page's "Load more" button
+   (.btn.btn-secondary) stayed visible despite `hidden` being set. !important
+   is deliberate here, not a shortcut -- [hidden] means "must not render,"
+   a stronger guarantee than any component's default display, and this is
+   the one rule in the codebase that needs to always win regardless of what
+   other classes coexist on the element. */
+[hidden] { display: none !important; }
+
 .visually-hidden {
   position: absolute;
   width: 1px; height: 1px;

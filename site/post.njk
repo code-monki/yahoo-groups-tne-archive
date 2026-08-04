@@ -6,8 +6,10 @@ pagination:
   alias: post
 permalink: "/posts/{{ post.id }}/"
 ---
-<h1>{{ post.subject }}</h1>
-<p class="byline">Posted by <strong>{{ post.author.display_name }}</strong>{% if post.author.profile_handle %} ({{ post.author.profile_handle }}){% endif %} · <time datetime="{{ post.date_utc }}" title="{{ post.date_original }}">{{ post.date_utc | formatDate }}</time></p>
+<div data-pagefind-body>
+<h1 data-pagefind-meta="title" data-pagefind-weight="10">{{ post.subject }}</h1>
+<p class="byline">Posted by <strong data-pagefind-meta="author">{{ post.author.display_name }}</strong>{% if post.author.profile_handle %} ({{ post.author.profile_handle }}){% endif %} · <time data-pagefind-meta="date" datetime="{{ post.date_utc }}" title="{{ post.date_original }}">{{ post.date_utc | formatDate }}</time></p>
+</div>
 
 <div class="context-strip">
   <span>Part of thread: <a href="{{ ('/threads/' + post.thread_id + '/') | url }}">{{ posts.byId.get(post.thread_id).subject }}</a> · {{ post.reply_ids.length }} repl{{ "y" if post.reply_ids.length == 1 else "ies" }}</span>
@@ -21,7 +23,7 @@ permalink: "/posts/{{ post.id }}/"
   {% endfor %}
 </div>
 
-<div class="post-body">{{ post.body_html | safe }}</div>
+<div class="post-body" data-pagefind-body>{{ post.body_html | safe }}</div>
 
 {% if post.attachments.length %}
 <h2>Attachments</h2>

@@ -11,6 +11,7 @@ Entries found and fixed *during* implementation (i.e. before any `docs/test-plan
 | 3 | Critical | 4 | Duplicate posts across threads; dedup kept a synthetic-UUID copy over the real Yahoo-permalink copy | Fixed |
 | 4 | Critical | 5 | Build failure (`ENAMETOOLONG`) generating author pages, from a garbled ~300-char "author name" | Fixed |
 | 5 | Major | 5 | Topic index/detail pages displayed the normalized grouping key instead of the topic's real subject | Fixed |
+| 6 | Major | 6 | Search's "Load more results" button stayed visible after all results were shown | Fixed |
 
 ---
 
@@ -73,3 +74,19 @@ Entries found and fixed *during* implementation (i.e. before any `docs/test-plan
 **Fix:** Topic's display `subject` is now `posts[0].subject` — the real subject of the chronologically earliest post in the group (the array is already ascending by `date_utc`, mirroring `data/posts.json`'s own sort order).
 
 **Verified:** Rebuilt; spot-checked several topics for correct casing/prefix; confirmed `posts[0]` really is the earliest post via the existing chronological-ordering guarantee documented in `site/_data/posts.js`.
+
+## 6. "Load more results" button stays visible after all results are shown
+
+**Severity:** Major (wrong, misleading UI state on the one page with unbounded result counts — clicking it a second time is a harmless no-op, not data-lossy, so short of Critical).
+
+**Found:** Phase 6 Playwright screenshot of a 4-result search ("hexographer") — the "Load more results" button rendered below a fully-shown result list with nothing left to load.
+
+**Root cause:** `site/js/search.js` toggles the button via the native `hidden` attribute (`loadMoreBtn.hidden = shownCount >= total`), which is the semantically correct mechanism — but the browser's own `[hidden] { display: none }` rule lives in the lowest-priority user-agent stylesheet, and `site/css/components.css`'s `.btn { display: inline-block }` rule (loaded after `base.css`, equal specificity) wins the cascade by source order alone, silently canceling it. Confirmed via `getComputedStyle`: `display: inline-block` despite `hidden` being correctly set on the element.
+
+**Fix:** Added `[hidden] { display: none !important; }` to `site/css/base.css` — a deliberate, narrow use of `!important`, since `[hidden]` means "must not render" and needs to win regardless of what other component classes coexist on an element.
+
+**Verified:** `getComputedStyle(btn).display` is `none` when hidden; Playwright confirms the button is hidden for a fully-shown result set and visible when more results remain (e.g. "orbit", top 40 of 297 shown).
+
+## Related but not logged as a defect: Pagefind's fuzzy matching has no reliable "no results" threshold
+
+Not a defect — a documented constraint discovered while investigating one. `pagefind.search()` uses edit-distance fuzzy matching that returns *something* for almost any input, including nonsense strings (e.g. "zzzznonexistentqueryterm" scored up to ~4 against the real index). An attempt to filter these out with a minimum relevance score was reverted after it also filtered out a genuine, FR-10-required stemmed match (post 6381, "orbiting" only, scored 4.13 — indistinguishable from noise by score alone). `site/js/search.js` intentionally does not score-filter results; see the comment at its `runSearch()` function for the full reasoning. FR-9 through FR-13 have no requirement that "no results" be reachable for arbitrary/garbage input, so this is accepted as-is rather than worked around further.

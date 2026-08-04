@@ -1,0 +1,29 @@
+---
+layout: layouts/base.njk
+permalink: "/search/"
+title: "Search"
+description: "Full-text search across every post's subject and body in the Traveller_TNE archive."
+breadcrumb:
+  - label: "Home"
+    url: "/"
+  - label: "Search"
+---
+<h1>Search</h1>
+
+<form class="search-form" role="search" id="search-form" aria-label="Search the archive">
+  <label class="visually-hidden" for="search-input">Search the archive</label>
+  <input id="search-input" name="q" type="search" placeholder="Search the archive…" autocomplete="off">
+  <button class="btn" type="submit">Search</button>
+</form>
+
+<p class="results-status" id="results-status" aria-live="polite"></p>
+<ol class="plain-list" id="results-list"></ol>
+<button class="btn btn-secondary" type="button" id="load-more" hidden>Load more results</button>
+
+<script>
+  // ADR-0017: pagefind's own asset resolution is relative to this file's
+  // own path, so the only thing search.js needs from us is the correct
+  // pathPrefix-aware base to import it from in the first place.
+  window.PAGEFIND_BASE = "{{ '/pagefind/' | url }}";
+</script>
+<script src="{{ '/js/search.js' | url }}" defer></script>
