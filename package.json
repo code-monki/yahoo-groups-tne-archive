@@ -1,0 +1,18 @@
+{
+  "name": "yahoo-groups-tne-archive",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Static archive of the Traveller_TNE Yahoo! Group (2005-2019).",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@11ty/eleventy": "^3.0.0",
+    "pagefind": "^1.1.0",
+    "playwright": "^1.47.0",
+    "@axe-core/playwright": "^4.10.0",
+    "@lhci/cli": "^0.14.0",
+    "linkinator": "^6.1.0"
+  }
+}
