@@ -355,6 +355,65 @@ def scrub_email_addresses(text: str) -> str:
     return text.strip()
 
 
+# One more quoted-forward convention, found via user review of a real post
+# (7326): "-------- Original message -------- Subject: X From: Y To: Z
+# CC: W" -- a plain-text mail client's rendering of a forwarded message's
+# headers, hard-wrapped at a fixed column with no regard for field
+# boundaries (the wrap can land mid-subject, mid-name, anywhere). To: and
+# CC: are empty in every one of the 13 real occurrences of this pattern
+# (their value was always an email address, already removed elsewhere) --
+# confirmed exhaustively, not assumed, before deciding to drop them
+# unconditionally rather than render an empty label. The gap between "To:"
+# and "CC:" separately tolerates quote markers (">" in text, the HTML-
+# escaped "&gt;" in body_html) and numbered-footnote references ("[4]")
+# that can land there when this header overlaps a "Links:"-style footer
+# (defect #16) in the same quoted block.
+_ORIGINAL_MESSAGE_TEXT_RE = re.compile(
+    r"-------- Original message --------\s*Subject:\s*(?P<subject>.*?)\s*From:\s*(?P<from>.*?)"
+    r"\s*To:[\s<>\[\]0-9]*CC:[\s<>\[\]0-9]*",
+    re.DOTALL,
+)
+_ORIGINAL_MESSAGE_HTML_RE = re.compile(
+    r"-------- Original message --------\s*Subject:\s*(?P<subject>.*?)\s*From:\s*(?P<from>.*?)"
+    r"\s*To:(?:[\s>\[\]0-9]|&gt;|&lt;|<br\s*/?>|<a>\s*</a>)*CC:(?:[\s>\[\]0-9]|&gt;|&lt;|<br\s*/?>)*",
+    re.DOTALL,
+)
+
+
+def _clean_header_field(raw: str) -> str:
+    text = re.sub(r"<br\s*/?>", "\n", raw)
+    text = re.sub(r"<a>\s*</a>", "", text)
+    text = re.sub(r"&gt;", ">", text)
+    text = re.sub(r"&lt;", "<", text)
+    # Quote markers only ever mean something at the start of a wrapped
+    # line ("> " or repeated "> > " for nested quoting) -- collapsed after,
+    # once real line breaks are gone, whitespace-only.
+    text = re.sub(r"^(?:\s*>)+\s*", "", text, flags=re.MULTILINE)
+    text = re.sub(r"\[\d+\]\s*", "", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def reflow_original_message_header(text: str, is_html: bool) -> str:
+    """Rewrite a "-------- Original message --------" quoted-forward header
+    onto clean, single-line fields, dropping To:/CC: (always empty in this
+    convention) instead of rendering blank labels.
+    """
+    pattern = _ORIGINAL_MESSAGE_HTML_RE if is_html else _ORIGINAL_MESSAGE_TEXT_RE
+    sep = "<br/>\n" if is_html else "\n"
+
+    def repl(m: re.Match) -> str:
+        subject = _clean_header_field(m.group("subject"))
+        sender = _clean_header_field(m.group("from"))
+        parts = ["-------- Original message --------"]
+        if subject:
+            parts.append(f"Subject: {subject}")
+        if sender:
+            parts.append(f"From: {sender}")
+        return sep.join(parts) + sep + sep
+
+    return pattern.sub(repl, text)
+
+
 def scrub_author_display_name(name: str) -> str:
     """An author display name that's actually just an email address (no real
     name was ever set) is reduced to the local part only -- still not a

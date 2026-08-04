@@ -23,6 +23,7 @@ Entries found and fixed *during* implementation (i.e. before any `docs/test-plan
 | 15 | Critical | 9 (post-launch) | Email-scrubbing regex only tolerated whitespace next to punctuation, missing addresses hard-wrapped mid-word by quoted plain-text mail — 224 real, live email addresses (personal and list addresses) were unscrubbed and publicly deployed | Fixed |
 | 16 | Major | 9 (post-launch) | A third Yahoo footer variant ("Links:" plain-text reference list, dead tracking URLs) leaked into 128/4060 post bodies | Fixed |
 | 17 | Major | 9 (post-launch) | Orphaned literal "mailto:" label text (address already scrubbed, prefix left behind) remained in 341/4060 post bodies | Fixed |
+| 18 | Minor | 9 (post-launch) | "-------- Original message --------" quoted-forward headers rendered as garbled, hard-wrapped Subject/From/To/CC text with always-blank To:/CC: shown as noise | Fixed |
 
 ---
 
@@ -229,6 +230,18 @@ Entries found and fixed *during* implementation (i.e. before any `docs/test-plan
 **Fix:** `scrub_email_addresses` now additionally strips any literal `mailto:` (plus trailing whitespace) remaining after address removal — safe unconditionally, since by construction anything still attached to that prefix was already caught by the address-matching passes that run first.
 
 **Verified:** Re-ran ETL; 0/4060 posts contain `"mailto:"` afterward (down from 341); spot-checked several for readability (e.g. `[mailto:]On Behalf Of DED` → `[]On Behalf Of DED`) -- surrounding quote-header text intact.
+
+## 18. "-------- Original message --------" quote-headers rendered as garbled noise
+
+**Severity:** Minor (readability/presentation only, 13/4060 posts — not a privacy or correctness issue like #15-17, but found in the same investigation).
+
+**Found:** User review of a real post's raw content, flagging the exact example that later led to #15/#16/#17 — noting that hard-wrapped `Subject:`/`From:`/`To:`/`CC:` fields read as garbled and that always-blank `To:`/`CC:` labels added nothing.
+
+**Root cause:** This quoted-forward convention (`-------- Original message --------\nSubject: X\nFrom: Y\nTo: Z\nCC: W`) is plain-text mail hard-wrapped at a fixed column with no regard for field boundaries -- the wrap can land mid-subject, mid-name, anywhere, so it displayed as a jumble rather than clean fields. Confirmed exhaustively before deciding to drop `To:`/`CC:` unconditionally: all 13 real occurrences of this exact header style have both fields empty (the value was always an email address, already removed elsewhere in the pipeline).
+
+**Fix:** `normalize.reflow_original_message_header()` rebuilds the header as clean `Subject: ...` / `From: ...` lines (omitting either if empty), dropping `To:`/`CC:` entirely. Applied to both `body_text` and `body_html` with parallel regexes, since `body_html` renders as `<br/>`-joined lines rather than `\n`. Two rounds of real-data testing surfaced edge cases an initial version missed: multi-level quote markers (`"> > "`) needed a repeating-group match, not a single `>+`; a numbered footnote reference (`"[4] "`) from an overlapping "Links:"-footer (#16) bled into a captured field; and one post with a nested quote-of-a-quote had a second occurrence containing `&lt;`/literal `<>` (HTML-entity and already-scrubbed-bracket remnants respectively) that the initial gap-tolerance pattern didn't include, silently leaving that second occurrence unfixed.
+
+**Verified:** Re-ran ETL; 0/4060 posts show an unformatted `To:...CC:` remnant in either body field (checked via a pattern independent of the fix's own regex, to avoid the check trivially passing by construction); the nested-quote post confirmed to have *both* of its occurrences cleanly reflowed. Spot-checked the exact post/output the user quoted -- matches what they asked for exactly.
 
 ## Related but not logged as a defect: Pagefind's fuzzy matching has no reliable "no results" threshold
 
