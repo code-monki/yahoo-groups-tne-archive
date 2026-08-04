@@ -77,7 +77,7 @@ The DD will define the authoritative field-by-field schema; this is the shape th
   "parent_id": null,
   "reply_ids": ["6318", "6321"],
   "attachments": [
-    { "filename": "TimeToOrbit.xls", "available": true }
+    { "filename": "TimeToOrbit.xls", "source": "mime_embedded" }
   ],
   "yahoo_url": "http://groups.yahoo.com/group/Traveller_TNE/message/6312"
 }
@@ -86,7 +86,7 @@ The DD will define the authoritative field-by-field schema; this is the shape th
 Notes intentional to this design:
 - `id` is the Yahoo permalink message ID (DR-2's dedup key) wherever one exists; for pre-digest-era or otherwise permalink-less posts, a stable synthetic ID is generated once and never recomputed. No email address field exists anywhere in this schema (DR-4/FR-4) — `author` carries only what's needed for FR-5/FR-15.
 - Both `date_utc` and `date_original` are always present (DR-3).
-- `attachments[].available` is computed at build time from DR-8's attachment source folder — it is data the *build* derives, not something the ETL hardcodes, so FR-27's "add a file, rebuild, done" behavior falls out naturally: the same dataset field just evaluates differently against a fuller `attachments/` folder.
+- `attachments[]` entries in `data/posts.json` carry only `filename` and `source` — never an `available` field. Availability is computed at *build* time from DR-8's attachment source folder, into the Eleventy data layer (dd.md §7.1), not stored in the committed dataset at all. This is what makes FR-27's "add a file, rebuild, done" behavior clean: there's no stale boolean anywhere that could disagree with reality between commits.
 - `yahoo_url` is retained purely as dead provenance metadata (Yahoo Groups no longer resolves it) — useful for citation/verification during development, not a working link on the live site.
 
 ## 4. Threading algorithm
@@ -162,15 +162,15 @@ CSS custom properties for all color tokens; a `@media (prefers-color-scheme: dar
 | Makefile target | Action |
 |---|---|
 | `make help` (default) | Self-documenting target list. |
-| `make data` | Run the Python ETL against `mail_archives/YahooArchive`, producing/updating `data/posts.json`. |
-| `make build` | `make data` (if not already current) → Eleventy build → `make index`. |
+| `make data` | Run the Python ETL against `mail_archives/YahooArchive`, producing/updating `data/posts.json`. **Human-run only** — `mail_archives/` is gitignored (unredacted PII, ADR-0008) and isn't present in a CI checkout, so `make build` never invokes this automatically. |
+| `make build` | Eleventy build → `make index`, consuming whatever `data/posts.json` is already committed. No dependency on `mail_archives/` existing. |
 | `make index` | Run Pagefind against the built site output. Also runnable standalone against an existing build during iteration. |
 | `make serve` | Eleventy dev server with live reload. *(Note: Pagefind's index is a post-build step — search won't reflect unindexed edits until the next `make build`/`make index`; acceptable for a frozen-content site.)* |
 | `make test` | axe-core + Lighthouse CI against the built output, plus a link checker. |
 | `make clean` | Remove build output (`_site/`, Pagefind assets); `data/posts.json` is a committed artifact (concept.md §7) and is not touched by `clean`. |
 | `make deploy` | Manual-fallback path; the primary path is the GitHub Actions workflow below. |
 
-**GitHub Actions workflow** (on push to default branch, or manual dispatch): checkout → set up Python + Node → `make build` → `actions/deploy-pages`. No other external service is involved (IR-1).
+**GitHub Actions workflow** (on push to default branch, or manual dispatch): checkout → set up Python + Node → `make build` → `make test` (gate) → `actions/deploy-pages`. CI never runs `make data`. No other external service is involved (IR-1).
 
 ## 10. Traceability preview
 

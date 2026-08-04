@@ -142,14 +142,14 @@ Actual token values, color palette (with verified contrast ratios), type scale, 
 
 | Makefile target | Command(s) |
 |---|---|
-| `make data` | `python3 pipeline/etl.py` → writes `data/posts.json` |
-| `make build` | `make data` (if stale) → `npx @11ty/eleventy` → `make index` |
+| `make data` | `python3 pipeline/etl.py` → writes `data/posts.json`. **Human-run only, never invoked by `make build`** — `mail_archives/` is gitignored (it holds unredacted PII, ADR-0008) and simply isn't present in a fresh CI checkout, so any auto-trigger here would break every CI build. Re-run this locally and commit the result whenever the ETL changes or a parsing bug is fixed (concept.md §7). |
+| `make build` | `npx @11ty/eleventy` → `make index`. Consumes whatever `data/posts.json` is already committed — no dependency on `mail_archives/` existing. |
 | `make index` | `npx pagefind --site _site` |
 | `make serve` | `npx @11ty/eleventy --serve` |
 | `make test` | `npx playwright test` (axe-core scan, §11) + `npx lhci autorun` (§11) + `npx linkinator _site` |
 | `make clean` | remove `_site/` and Pagefind output; `data/posts.json` untouched |
 
-GitHub Actions (unchanged from hld.md §9): checkout → set up Python + Node → `make build` → `actions/deploy-pages`.
+GitHub Actions: checkout → set up Python + Node → `make build` → `make test` (gate — a Critical-severity failure per test-plan.md §10 stops the deploy) → `actions/deploy-pages`. CI never calls `make data`, per `make build`'s note above.
 
 ## 11. Test tooling (implementation detail for the later Test Plan)
 

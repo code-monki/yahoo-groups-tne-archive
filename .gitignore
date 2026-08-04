@@ -5,7 +5,13 @@ mail_archives/
 
 # Local/OS noise
 .DS_Store
+.vscode/
 node_modules/
+.venv/
+__pycache__/
+*.pyc
 
 # Future Eleventy build output (dd.md §10) — generated, not source
 _site/
+.cache/
+_site/pagefind/
