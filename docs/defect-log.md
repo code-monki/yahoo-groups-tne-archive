@@ -12,6 +12,8 @@ Entries found and fixed *during* implementation (i.e. before any `docs/test-plan
 | 4 | Critical | 5 | Build failure (`ENAMETOOLONG`) generating author pages, from a garbled ~300-char "author name" | Fixed |
 | 5 | Major | 5 | Topic index/detail pages displayed the normalized grouping key instead of the topic's real subject | Fixed |
 | 6 | Major | 6 | Search's "Load more results" button stayed visible after all results were shown | Fixed |
+| 7 | Major | 7 | Direct (non-digest) emails' Yahoo footer boilerplate ("Yahoo! Groups Links" etc.) leaked into 91/4060 post bodies | Fixed |
+| 8 | Critical | 7 | Fixing #7 caused 5 posts' real content to be deleted entirely (empty body) | Fixed |
 
 ---
 
@@ -86,6 +88,30 @@ Entries found and fixed *during* implementation (i.e. before any `docs/test-plan
 **Fix:** Added `[hidden] { display: none !important; }` to `site/css/base.css` — a deliberate, narrow use of `!important`, since `[hidden]` means "must not render" and needs to win regardless of what other component classes coexist on an element.
 
 **Verified:** `getComputedStyle(btn).display` is `none` when hidden; Playwright confirms the button is hidden for a fully-shown result set and visible when more results remain (e.g. "orbit", top 40 of 297 shown).
+
+## 7. Direct emails' Yahoo footer boilerplate not stripped
+
+**Severity:** Major (91/4060 posts carry unsubscribe-link/Terms-of-Service boilerplate as if it were part of the archived message).
+
+**Found:** Phase 7 Playwright screenshot of a real post with an attachment — "Yahoo! Groups Links" / "To visit your group..." / "To unsubscribe..." / "Your use of Yahoo! Groups is subject to..." rendered as ordinary body content beneath the author's actual message.
+
+**Root cause:** `normalize.py`'s `_BOILERPLATE_TEXT_MARKERS` only covered digest-specific footer phrasing (from Phase 2's digest-focused validation pass) — direct (non-digest) emails carry their own, differently-worded Yahoo-appended footer that no marker matched.
+
+**Fix:** Added `"Yahoo! Groups Links"` to `_BOILERPLATE_TEXT_MARKERS`.
+
+**Verified:** Re-ran full ETL; 0/4060 posts contain the marker text afterward (down from 91).
+
+## 8. Fixing #7 deleted 5 posts' real content entirely
+
+**Severity:** Critical (real archived content silently destroyed — worse than the defect the fix was meant to resolve).
+
+**Found:** Immediately after applying #7's fix and re-running the ETL — the standard post-run validation sweep (0-empty-bodies check, run after every ETL change throughout this project) showed 5 empty bodies where there had been 0 before.
+
+**Root cause:** Plain-text-only emails (no HTML MIME part — `_extract_non_digest_post`'s fallback path) had their *entire* raw body, including the Yahoo footer, wrapped in one single flat `<p>` tag with no paragraph structure. `normalize.py`'s marker-based truncation operates at DOM node granularity; with only one node covering the whole message, adding a marker that now matched *within* that single node gave the truncation logic no boundary finer than "the whole node" to cut at, so it removed the entire post body — real message and footer both — for the 5 posts where this fallback path applied and the message was plain-text.
+
+**Fix:** `etl.py`'s new `_plain_text_to_html()` splits a plain-text body into one `<p>` per blank-line-separated paragraph (each individually HTML-escaped, which the old single-`<p>` fallback never did either — a latent, lower-severity gap in its own right, since a literal `<`/`&` in someone's plain-text message could previously have been misread as markup) before handing off to the same sanitize/truncate pipeline every other post goes through. This gives truncation a real paragraph boundary to cut the footer at without touching the paragraphs before it.
+
+**Verified:** Re-ran full ETL; 0 empty bodies, 0 posts with the marker text, and the specific previously-emptied post ("[Traveller_TNE] Low Tech Stuff") confirmed to retain its full multi-paragraph real content with only the footer removed.
 
 ## Related but not logged as a defect: Pagefind's fuzzy matching has no reliable "no results" threshold
 

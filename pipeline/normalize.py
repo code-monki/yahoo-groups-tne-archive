@@ -105,6 +105,10 @@ _BOILERPLATE_TEXT_MARKERS = (
     "Reply via web post",
     "Messages in this topic",
     "All Messages",
+    # Direct (non-digest) emails' own Yahoo-appended footer -- confirmed
+    # against the real archive: 91/4060 posts, missed by the markers above
+    # since those all target digest-specific boilerplate phrasing.
+    "Yahoo! Groups Links",
 )
 
 _ALLOWED_TAGS = {

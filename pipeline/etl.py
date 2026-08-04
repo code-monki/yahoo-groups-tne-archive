@@ -6,6 +6,7 @@ data/posts.json. See docs/dd.md §4 for the module breakdown this implements.
 
 from __future__ import annotations
 
+import html
 import json
 import logging
 import re
@@ -103,10 +104,31 @@ def _build_post(
     }
 
 
+def _plain_text_to_html(text: str) -> str:
+    """Wrap a plain-text email body as one <p> per paragraph (blank-line
+    separated), HTML-escaped.
+
+    Confirmed against the real archive: a single flat `<p>` around the
+    entire message left normalize.py's boilerplate-marker truncation with
+    no node-level boundary to cut at once a marker (e.g. "Yahoo! Groups
+    Links") was added that -- for a plain-text email -- sits in the same
+    lone text node as the real message. Truncation then removed the whole
+    node, discarding real content along with the footer (5/4060 posts).
+    Paragraph-level <p> tags give it a real boundary to cut at instead.
+    Escaping is also new here: previously raw plain text was interpolated
+    directly into HTML unescaped, so a literal "<" or "&" in someone's
+    message could be misread as markup.
+    """
+    paragraphs = re.split(r"\r?\n\s*\r?\n", (text or "").strip())
+    return "".join(
+        f"<p>{html.escape(p).replace(chr(10), '<br>')}</p>" for p in paragraphs if p.strip()
+    )
+
+
 def _extract_non_digest_post(record: parse_mbox.RawRecord) -> dict:
     msg = record.message
     text_plain, text_html = parse_mbox.extract_body_parts(msg)
-    body_html_raw = text_html if text_html else f"<p>{text_plain or ''}</p>"
+    body_html_raw = text_html if text_html else _plain_text_to_html(text_plain)
 
     message_num_match = _MESSAGE_NUM_RE.search(body_html_raw) if text_html else None
     yahoo_url_match = _YAHOO_URL_RE.search(body_html_raw) if text_html else None
