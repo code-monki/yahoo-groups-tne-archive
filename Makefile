@@ -17,10 +17,8 @@ index: ## Generate the Pagefind search index against the built site.
 serve: ## Run the Eleventy dev server with live reload.
 	npx @11ty/eleventy --serve
 
-test: ## Run the automated test suite (accessibility, performance, link integrity) against the built site.
-	npx playwright test
-	npx lhci autorun
-	npx linkinator _site --recurse
+test: ## Run the automated test suite (data integrity, functional, accessibility, performance, link integrity) against the built site.
+	./scripts/run-tests.sh
 
 clean: ## Remove build output. data/posts.json is a committed artifact and is left untouched.
 	rm -rf _site .cache

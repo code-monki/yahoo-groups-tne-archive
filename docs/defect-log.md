@@ -19,6 +19,7 @@ Entries found and fixed *during* implementation (i.e. before any `docs/test-plan
 | 11 | Major | 8 | 7 digest posts had an empty author name, silently fragmenting one prolific poster's history into a spurious "unknown" author | Fixed |
 | 12 | Major | 8 | Skip link scrolled to `<main>` but never moved actual keyboard focus there (WCAG 2.4.1) | Fixed |
 | 13 | Minor | 8 | One archived post's own real `<h3>` subheadings skipped a level under the page's `<h1>` (no `<h2>`) | Fixed |
+| 14 | Major | 9 | No `404.html` existed at all, despite hld.md §7 explicitly committing to one for the "help recognize/recover from errors" Nielsen heuristic | Fixed |
 
 ---
 
@@ -177,6 +178,18 @@ Entries found and fixed *during* implementation (i.e. before any `docs/test-plan
 **Fix:** `sanitize_body` now remaps any heading level surviving in body content so the shallowest one present becomes `<h2>`, shifting the rest by the same amount to preserve relative nesting.
 
 **Verified:** Site-wide crawl re-run after the fix: 0 pages with a heading-level skip (down from 2), 0 pages with other than exactly one `<h1>`, 0 `<img>` missing `alt` — across all 5829 pages, not just the 11-template sample.
+
+## 14. No custom 404 page existed
+
+**Severity:** Major (an explicit design commitment in hld.md §7's Nielsen-heuristic mapping — "Help users recognize/recover from errors: A real, styled 404 page pointing back to search/home" — was never implemented in any of Phases 3-8; GitHub Pages would have served its own generic default instead).
+
+**Found:** Phase 9's TC-USE-01 heuristic review, checking the actual build against hld.md §7's table row by row.
+
+**Root cause:** Simple omission — no phase in the implementation plan explicitly called out a 404 template, and hld.md §7's mapping table wasn't cross-checked against the build until this review.
+
+**Fix:** Added `site/404.njk` (`permalink: /404.html`, matching GitHub Pages' convention for a project site's custom 404), using the shared layout, with a search form and a link back to Home.
+
+**Verified:** Builds to `_site/404.html`; renders correctly with full site chrome (nav, theme toggle, footer).
 
 ## Related but not logged as a defect: Pagefind's fuzzy matching has no reliable "no results" threshold
 

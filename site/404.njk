@@ -1,0 +1,16 @@
+---
+layout: layouts/base.njk
+permalink: "/404.html"
+title: "Page not found"
+description: "The page you're looking for doesn't exist in the Traveller_TNE archive."
+---
+<h1>Page not found</h1>
+<p class="lede">There's nothing at this address. The archive itself is still here — try a search, or head back to the home page.</p>
+
+<form class="search-form" role="search" method="get" action="{{ '/search/' | url }}" aria-label="Search the archive">
+  <label class="visually-hidden" for="notfound-search">Search the archive</label>
+  <input id="notfound-search" name="q" type="search" placeholder="Search the archive…">
+  <button class="btn" type="submit">Search</button>
+</form>
+
+<p><a href="{{ '/' | url }}">Back to Home</a></p>
