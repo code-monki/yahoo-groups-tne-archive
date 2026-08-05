@@ -32,7 +32,7 @@ permalink: "/posts/{{ post.id }}/"
 <div class="attachment-row">
   <span class="filename">{{ attachment.filename }}</span>
   {% if post.id | attachmentAvailable(attachment.filename) %}
-  <a class="btn btn-secondary" href="{{ ('/attachments/' + post.id + '/' + attachment.filename) | url }}">Download</a>
+  <a class="btn btn-secondary" href="{{ ('/attachments/' + post.id + '/' + attachment.filename) | url }}" target="_blank" rel="noopener">Download</a>
   {% else %}
   <button class="btn btn-secondary" type="button" data-open-attachment-modal>Attachment unavailable</button>
   {% endif %}
