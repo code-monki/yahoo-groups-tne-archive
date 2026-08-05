@@ -23,7 +23,7 @@ breadcrumb:
     </span>
     <div class="attachment-row">
       {% if file.source_post_id | fileAvailable(file.filename) %}
-      <a class="btn btn-secondary" href="{{ ('/files/' + file.source_post_id + '/' + file.filename) | url }}">Download</a>
+      <a class="btn btn-secondary" href="{{ ('/files/' + file.source_post_id + '/' + file.filename) | url }}" target="_blank" rel="noopener">Download</a>
       {% else %}
       <button class="btn btn-secondary" type="button" data-open-attachment-modal>Not currently available</button>
       {% endif %}
