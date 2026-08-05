@@ -69,6 +69,8 @@ def _build_post(
     body_text = normalize.scrub_email_addresses(body_text)
     body_html = normalize.reflow_original_message_header(body_html, is_html=True)
     body_text = normalize.reflow_original_message_header(body_text, is_html=False)
+    body_html = normalize.reflow_outlook_original_message_header(body_html, is_html=True)
+    body_text = normalize.reflow_outlook_original_message_header(body_text, is_html=False)
     author_display_name = normalize.scrub_author_display_name(author_display_name_raw)
 
     if permalink_id:

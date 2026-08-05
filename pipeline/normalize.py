@@ -249,6 +249,12 @@ def sanitize_body(html: str) -> tuple[str, str]:
                 h.name = f"h{max(2, min(6, int(h.name[1]) + shift))}"
 
     for tag in soup.find_all(True):
+        # A mailto <a>'s children (below) can include this tag -- once that
+        # <a> is cleared, this tag is no longer attached to the document,
+        # even though it's still in this already-materialized find_all()
+        # list.
+        if tag.parent is None:
+            continue
         # lxml's own <html>/<body> wrapper -- structural, not content; must
         # not be unwrapped or `root.contents` (still referencing the `body`
         # tag object) would empty out as its children get reparented away.
@@ -267,7 +273,29 @@ def sanitize_body(html: str) -> tuple[str, str]:
             # read-only static archive with no mail backend, so there's no
             # downside to dropping it outright rather than trying to keep
             # scrubbing it correctly.
-            if not href.lower().startswith("mailto:"):
+            if href.lower().startswith("mailto:"):
+                # The href already tells us, unambiguously, that this
+                # anchor's visible text is an email address -- clear it
+                # here rather than leaving it to flow into get_text() and
+                # relying on the text-level scrub regex to find it again
+                # from scratch. That regex has to tolerate a genuine
+                # mid-token line-wrap (Yahoo inserts <wbr> inside long
+                # addresses, which get_text(separator="\n") turns into a
+                # real newline), and that same tolerance can't distinguish
+                # "this fragment continues the address on the next line"
+                # from "an unrelated real word happens to sit immediately
+                # before the address's first line" -- confirmed against the
+                # real archive (post source msg 211, digest-embedded):
+                # "...]On Behalf Of\nshadow@shadowgard.\ncom" matched as one
+                # address starting at "Of", deleting that real word along
+                # with the address. Clearing the text at the DOM level,
+                # where the anchor boundary is still known, removes the
+                # address without ever exposing this ambiguity to the
+                # regex. The plain-text hard-wrap case (quoted replies with
+                # no HTML structure at all) has no such boundary available
+                # and still needs the text-level regex's tolerance.
+                tag.clear()
+            else:
                 attrs_to_keep["href"] = href
         tag.attrs = attrs_to_keep
 
@@ -403,6 +431,10 @@ _ORIGINAL_MESSAGE_HTML_RE = re.compile(
 def _clean_header_field(raw: str) -> str:
     text = re.sub(r"<br\s*/?>", "\n", raw)
     text = re.sub(r"<a>\s*</a>", "", text)
+    # Outlook's own header block bolds its field labels ("<b>From:</b>",
+    # "<b>On Behalf Of </b>") -- irrelevant once the label text itself is
+    # dropped or reduced to a single clean value.
+    text = re.sub(r"</?b>", "", text)
     text = re.sub(r"&gt;", ">", text)
     text = re.sub(r"&lt;", "<", text)
     # Quote markers only ever mean something at the start of a wrapped
@@ -431,6 +463,157 @@ def reflow_original_message_header(text: str, is_html: bool) -> str:
             parts.append(f"From: {sender}")
         return sep.join(parts) + sep + sep
 
+    return pattern.sub(repl, text)
+
+
+# A second, distinct quoted-forward convention -- Outlook's own
+# "-----Original Message-----" header (four dashes, capitalized
+# differently, no "found via review" quirks shared with the 8-dash one
+# above). 97/4060 posts, confirmed by direct sampling of the real archive.
+# Two sub-styles, both handled by one pattern since the field order and
+# anchors are identical:
+#   - The mailing-list-relay style: "From:" is blank (the visible From was
+#     the list's own relay address, now scrubbed) and the real author's
+#     name instead follows "On Behalf Of" on the next line -- Outlook
+#     renders this as "[mailto:address]On Behalf Of Name", and once the
+#     scrubbed address leaves only the empty brackets, this reads as
+#     "[]On Behalf Of Name".
+#   - A plain client-forward style ("From: Name <address>", "Date:" instead
+#     of "Sent:") -- the address's surrounding "<>" are left empty the same
+#     way once scrubbed.
+# A rarer BlackBerry-forward variant (one real post, two occurrences)
+# additionally carries "Sender:"/"Reply-To:" fields with no real content of
+# their own -- handled by treating them as one more thing to discard rather
+# than adding them to the four displayed fields.
+#
+# Unlike the 8-dash convention, there's no fixed literal (like "CC:") that
+# reliably marks the end of the *Subject* value before real reply content
+# begins -- a wrapped subject can run directly into the next line of actual
+# body text with no blank line or other separator in the plain-text
+# rendering (confirmed against the real archive, post 5262: "...make you go
+# hmmmm\nVirus is self aware." -- both are on their own line with nothing
+# to structurally tell them apart). Rather than guess where the subject
+# ends -- exactly the kind of assumption that produced the content-loss
+# regression in the 8-dash fix (defect #19) -- this reflow stops at the
+# "Subject:" label itself and leaves the value, and everything after it,
+# untouched. That means an occasional two-line subject won't fully collapse
+# to one line, but nothing real is ever at risk of being eaten.
+_QUOTE_WS_TEXT = r"[\s>]*"
+_QUOTE_WS_HTML = r"(?:\s|&gt;|&lt;|<br\s*/?>|<a>\s*</a>)*"
+# Two field orders are both confirmed in the real archive: From/Sent-or-
+# Date/To/Subject (the common case) and From/To/Sent-or-Date/Subject (posts
+# 7344, 7351). Both are tried as a single alternation within one match
+# attempt per "-----Original Message-----" occurrence, not as two separate
+# passes -- an earlier version of this ran the two field orders as two
+# sequential .sub() passes over the whole text, which broke on a post
+# (6758) containing a *second*, unmarked header block later in the same
+# body (no "-----Original Message-----" of its own, just a bare repeat of
+# the From/Sent/To/Subject convention -- a doubly-forwarded quote whose
+# client didn't re-emit the divider line). The primary field order
+# correctly reflowed the first block and, as designed, dropped its now-
+# empty "To:" line; the second pass then re-scanned that already-reflowed
+# output looking for "To:" near the same marker, didn't find it there
+# anymore, and its lazy match kept searching until it found the *second*
+# block's "To:" instead -- silently swallowing the entire real paragraph in
+# between as if it were part of the header. A single regex with the two
+# field orders as internal alternatives never re-scans its own output, so
+# this can't recur: each match attempt is independent, and once the first
+# occurrence is consumed by re.sub, the second (unmarked, unmatched) block
+# is structurally invisible to this pattern regardless of order.
+_OUTLOOK_ORIGINAL_MESSAGE_TEXT_RE = re.compile(
+    r"-----Original Message-----" + _QUOTE_WS_TEXT + r"From:\s*(?P<from>.*?)"
+    + r"(?:"
+    + _QUOTE_WS_TEXT + r"(?P<when_label_a>Sent|Date):\s*(?P<when_a>.*?)"
+    + _QUOTE_WS_TEXT + r"To:\s*(?P<to_a>.*?)"
+    + r"|"
+    + _QUOTE_WS_TEXT + r"To:\s*(?P<to_b>.*?)"
+    + _QUOTE_WS_TEXT + r"(?P<when_label_b>Sent|Date):\s*(?P<when_b>.*?)"
+    + r")"
+    + _QUOTE_WS_TEXT + r"Subject:[ \t]*\r?\n?[ \t]*",
+    re.DOTALL,
+)
+_OUTLOOK_ORIGINAL_MESSAGE_HTML_RE = re.compile(
+    r"-----Original Message-----" + _QUOTE_WS_HTML + r"(?:<b>)?From:(?:</b>)?\s*(?P<from>.*?)"
+    + r"(?:"
+    + _QUOTE_WS_HTML + r"(?:<b>)?(?P<when_label_a>Sent|Date):(?:</b>)?\s*(?P<when_a>.*?)"
+    + _QUOTE_WS_HTML + r"(?:<b>)?To:(?:</b>)?\s*(?P<to_a>.*?)"
+    + r"|"
+    + _QUOTE_WS_HTML + r"(?:<b>)?To:(?:</b>)?\s*(?P<to_b>.*?)"
+    + _QUOTE_WS_HTML + r"(?:<b>)?(?P<when_label_b>Sent|Date):(?:</b>)?\s*(?P<when_b>.*?)"
+    + r")"
+    + _QUOTE_WS_HTML + r"(?:<b>)?Subject:(?:</b>)?[ \t]*(?:<br\s*/?>)?[ \t]*",
+    re.DOTALL,
+)
+# "Sender:"/"Reply-To:" carry no content of their own in every observed
+# occurrence and aren't one of the four displayed fields -- if either
+# lands inside a captured field's raw span (the main pattern has no anchor
+# for them), drop the label rather than let it render as a bare
+# "Sender:"/"Reply-To:" with nothing after it.
+_OUTLOOK_NOOP_FIELD_RE = re.compile(r"\b(?:Sender|Reply-To):\s*", re.IGNORECASE)
+
+
+def _clean_outlook_name_field(raw: str) -> str:
+    text = _clean_header_field(raw)
+    text = _OUTLOOK_NOOP_FIELD_RE.sub("", text)
+    text = re.sub(r"\[\s*\]", "", text)
+    # The closing ">" of an empty "<>" remnant can land right at the
+    # boundary with the next field's own quote-marker tolerance
+    # (_QUOTE_WS_TEXT/_QUOTE_WS_HTML also accepts a bare ">"), which can
+    # end up consuming it instead of leaving it in this capture -- so "<"
+    # and ">" are stripped independently rather than requiring a matched
+    # pair. Safe unconditionally here: in this field, any address that was
+    # ever inside these brackets has already been scrubbed, so neither
+    # character ever carries real content on its own.
+    text = re.sub(r"[<>]", "", text)
+    m = re.search(r"On Behalf Of\s*", text, flags=re.IGNORECASE)
+    if m:
+        text = text[m.end():]
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _clean_outlook_to_field(raw: str) -> str:
+    text = _clean_header_field(raw)
+    text = _OUTLOOK_NOOP_FIELD_RE.sub("", text)
+    text = re.sub(r"\[\s*\]", "", text)
+    # The closing ">" of an empty "<>" remnant can land right at the
+    # boundary with the next field's own quote-marker tolerance
+    # (_QUOTE_WS_TEXT/_QUOTE_WS_HTML also accepts a bare ">"), which can
+    # end up consuming it instead of leaving it in this capture -- so "<"
+    # and ">" are stripped independently rather than requiring a matched
+    # pair. Safe unconditionally here: in this field, any address that was
+    # ever inside these brackets has already been scrubbed, so neither
+    # character ever carries real content on its own.
+    text = re.sub(r"[<>]", "", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def reflow_outlook_original_message_header(text: str, is_html: bool) -> str:
+    """Rewrite a "-----Original Message-----" quoted-forward header onto
+    clean, single-line fields, matching reflow_original_message_header's
+    treatment of the other quoted-forward convention. Unlike that function,
+    the Subject value itself (and everything after it) is left untouched --
+    see the module-level comment above for why.
+    """
+    sep = "<br/>\n" if is_html else "\n"
+
+    def repl(m: re.Match) -> str:
+        when_label = m.group("when_label_a") or m.group("when_label_b")
+        when_raw = m.group("when_a") if m.group("when_a") is not None else m.group("when_b")
+        to_raw = m.group("to_a") if m.group("to_a") is not None else m.group("to_b")
+        sender = _clean_outlook_name_field(m.group("from"))
+        when = _clean_header_field(when_raw)
+        to = _clean_outlook_to_field(to_raw)
+        parts = ["-----Original Message-----"]
+        if sender:
+            parts.append(f"From: {sender}")
+        if when:
+            parts.append(f"{when_label}: {when}")
+        if to:
+            parts.append(f"To: {to}")
+        parts.append("Subject:")
+        return sep.join(parts) + " "
+
+    pattern = _OUTLOOK_ORIGINAL_MESSAGE_HTML_RE if is_html else _OUTLOOK_ORIGINAL_MESSAGE_TEXT_RE
     return pattern.sub(repl, text)
 
 
