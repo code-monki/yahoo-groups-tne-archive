@@ -14,8 +14,11 @@ yahoo-groups-tne-archive/
 │   └── YahooArchive.msf        # dev-time cross-check only (ADR-0001)
 ├── attachments/                # DR-8 — sparse, grows over time
 │   └── <permalink-id>/<original-filename>
+├── files/                      # DR-9/ADR-0018 — sparse, grows over time
+│   └── <source-post-id>/<original-filename>
 ├── data/
-│   └── posts.json              # canonical dataset (ADR-0001), committed
+│   ├── posts.json              # canonical dataset (ADR-0001), committed
+│   └── files.json              # Files-section manifest (DR-9), committed
 ├── pipeline/                   # Python ETL (§4)
 │   ├── etl.py
 │   ├── parse_mbox.py
@@ -40,7 +43,7 @@ yahoo-groups-tne-archive/
 
 ## 2. Canonical dataset — full schema
 
-One JSON array of post objects in `data/posts.json`. No separate `authors.json`/`topics.json`/etc. — author, topic, year/month, and thread groupings are all computed at Eleventy build time from this single file (§7.2), per ADR-0001's "one dataset, multiple derived views" principle.
+One JSON array of post objects in `data/posts.json`. No separate `authors.json`/`topics.json`/etc. — author, topic, year/month, and thread groupings are all computed at Eleventy build time from this single file (§7.2), per ADR-0001's "one dataset, multiple derived views" principle. `data/files.json` (§6a, added post-launch) is not an exception to this — it's derived within the same ETL run from the already-canonical post records, never a second independent read of `mail_archives/`, and represents a genuinely distinct thing (the Files-section manifest), not a redundant view over post data the way an `authors.json` would be.
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
@@ -83,8 +86,8 @@ This means IDs never need to be persisted or tracked across ETL reruns to stay s
 | `ids.py` | UUID v5 generation per §3; `author.slug` generation per §7.3. |
 | `dedupe.py` | Group raw posts by `id`; apply §5's tie-break rule for any group with more than one member. |
 | `thread.py` | ADR-0005's two-pass algorithm: header-based `Message-ID`/`In-Reply-To`/`References` resolution, then subject-normalized chronological chaining fallback. |
-| `attachments.py` | Cross-reference each post's referenced attachment filename(s) against `attachments/<id>/` (§6). |
-| `etl.py` | CLI entrypoint (`make data`): orchestrates the above in order, writes `data/posts.json`. |
+| `attachments.py` | Cross-reference each post's referenced attachment filename(s) against `attachments/<id>/` (§6). Also `find_files_section_candidates()` (a human-reviewed candidate list, unchanged) and, added post-launch, `extract_file_upload_notifications()` (§6a) — a fully automated manifest derived from Yahoo's own upload-notification emails. |
+| `etl.py` | CLI entrypoint (`make data`): orchestrates the above in order, writes `data/posts.json` and, added post-launch, `data/files.json` (§6a). |
 
 ## 5. Deduplication tie-breaking (resolves the HLD's open item)
 
@@ -97,6 +100,10 @@ Rationale: the source is static, so exact duplicates (the common, expected case 
 Directory: `attachments/<id>/<original-filename>` (ADR-0006), keyed by the same `id` as the owning post.
 
 At build time (not ETL time — this is why `attachments[].available` is computed by the site build per ADR-0006, not baked into `data/posts.json`): for each post's `attachments` entries, check whether `attachments/<id>/<filename>` exists; if so, copy it into the Eleventy output alongside the post's page and mark it available; if not, leave it unavailable and the post page renders the FR-26 modal instead.
+
+### 6a. Files-section matching (added post-launch, ADR-0018/FR-28)
+
+The same mechanism, a second time, for a genuinely distinct thing: `data/files.json` (a manifest derived by `pipeline/attachments.py`'s `extract_file_upload_notifications()` from Yahoo's own upload-notification emails, not from any one post's own attachments list) against `files/<source-post-id>/<original-filename>`, keyed by the manifest entry's `source_post_id` rather than a post's own `id`. `.eleventy.js`'s `fileAvailable` filter mirrors `attachmentAvailable` exactly; `site/files.njk` reuses `_includes/components/modal.njk` for the unavailable state rather than a second component.
 
 ## 7. Site generation (Eleventy)
 
@@ -112,7 +119,7 @@ At build time (not ETL time — this is why `attachments[].available` is compute
 
 ### 7.2 Templates
 
-One Nunjucks template per page type in the URL map (hld.md §6): `post.njk`, `thread.njk`, `author.njk` + `authors-index.njk`, `topic.njk` + `topics-index.njk`, `browse-year.njk` + `browse-month.njk`, `search.njk`, `help.njk`, `index.njk`. All extend `_includes/layouts/base.njk` (shared header/nav/footer/skip-link, per hld.md §7). `_includes/components/modal.njk` is the single shared native-`<dialog>` component used by FR-26.
+One Nunjucks template per page type in the URL map (hld.md §6): `post.njk`, `thread.njk`, `author.njk` + `authors-index.njk`, `topic.njk` + `topics-index.njk`, `browse-year.njk` + `browse-month.njk`, `files.njk` (§6a, added post-launch), `search.njk`, `help.njk`, `index.njk`, `404.njk` (added post-launch). All extend `_includes/layouts/base.njk` (shared header/nav/footer/skip-link, per hld.md §7). `_includes/components/modal.njk` is the single shared native-`<dialog>` component used by FR-26, reused as-is by `files.njk` for FR-28's unavailable state.
 
 ### 7.3 Author/topic slugs
 

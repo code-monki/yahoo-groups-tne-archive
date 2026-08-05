@@ -5,11 +5,11 @@
 
 ## 1. Origin of the data
 
-The source material is a full export of the **Traveller_TNE** Yahoo! Group (`Traveller_TNE@yahoogroups.com`), a mailing list for the *Traveller: The New Era* tabletop RPG setting, active 2005–2019. Yahoo Groups itself was shut down (content deletion completed in 2020); this archive is one member's local Thunderbird export and is, as far as we know, the only surviving copy of this community's discussion history.
+The source material is a full export of the **Traveller_TNE** Yahoo! Group (`Traveller_TNE@yahoogroups.com`), a mailing list for the *Traveller: The New Era* tabletop RPG setting, active 2005–2020 (its own final activity records the group's winding-down as Yahoo Groups itself shut down). This archive is one member's local Thunderbird export and is, as far as we know, the only surviving copy of this community's discussion history.
 
 The export is **frozen and read-only**: no new mail will ever arrive. See [data-structures.md](data-structures.md) for the full breakdown, but in short:
 
-- 724 mbox records, real date range 18 May 2005 – 8 Aug 2019.
+- 724 mbox records, real date range 18 May 2005 – 11 Jan 2020.
 - 71% of those records are Yahoo digest bundles, each containing multiple individual posts — so the true post count is higher than 724 and won't be known precisely until digest expansion is implemented.
 - Threading exists partially via headers, partially only recoverable via subject-matching.
 - The `.msf` file is a disposable Thunderbird cache, not a data source.

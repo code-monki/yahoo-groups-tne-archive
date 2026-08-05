@@ -122,12 +122,14 @@ This is a heuristic, not a guarantee of factually correct reply structure, and i
 | `/browse/<year>/` | Year → months/posts | FR-14 |
 | `/browse/<year>/<month>/` | Month's posts | FR-14 |
 | `/topics/` and `/topics/<slug>/` | Subject/topic index, independent of thread structure | FR-17 |
+| `/files/` | Files-section manifest, download link/modal per entry (added post-launch, ADR-0018) | FR-28 |
 | `/search/` | Pagefind-powered search UI | FR-9–FR-13 |
 | `/help/` | About, how-to-use, disclaimers, Notice-and-Takedown policy | FR-18, FR-24, FR-25 |
 | `/stats/` *(could-have)* | Aggregate stats | FR-22 |
 | `/sitemap.xml` | Generated sitemap | FR-20 |
+| `/404.html` | Custom not-found page (added post-launch, hld.md §7's own heuristic mapping) | NFR-7 |
 
-A persistent global header (site name, nav: Home / Browse / Authors / Topics / Search / Help) and footer (a single Notice-and-Takedown-policy link, FR-24 — the copyright/trademark text itself lives only on `/help/`, FR-25) appear on every template (FR-16).
+A persistent global header (site name, nav: Home / Browse / Authors / Topics / Files / Search / Help) and footer (a single Notice-and-Takedown-policy link, FR-24 — the copyright/trademark text itself lives only on `/help/`, FR-25) appear on every template (FR-16).
 
 ## 7. Accessibility & usability implementation approach
 

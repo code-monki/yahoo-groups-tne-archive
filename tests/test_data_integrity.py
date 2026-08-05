@@ -20,6 +20,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.parent
 POSTS_PATH = REPO_ROOT / "data" / "posts.json"
+FILES_PATH = REPO_ROOT / "data" / "files.json"
 
 _EMAIL_RE = re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}")
 _ISO_UTC_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
@@ -90,6 +91,17 @@ def main() -> int:
         fail(f"0 empty bodies invariant: {len(empty_bodies)} posts with empty body_text, e.g. {empty_bodies[:3]}")
     else:
         print("PASS: 0 posts with empty body_text")
+
+    # TC-DATA-09 (DR-9): the Files-section manifest is subject to the same
+    # no-email rule as the post dataset (ADR-0018).
+    files = json.loads(FILES_PATH.read_text(encoding="utf-8"))
+    print(f"Loaded {len(files)} files-manifest entries from {FILES_PATH}")
+    files_text = json.dumps(files, ensure_ascii=False)
+    files_email_matches = _EMAIL_RE.findall(files_text)
+    if files_email_matches:
+        fail(f"TC-DATA-09: {len(files_email_matches)} email-shaped substrings found in files.json, e.g. {files_email_matches[:3]}")
+    else:
+        print("PASS: TC-DATA-09 (0 email addresses in files.json)")
 
     if _failed:
         print("\nDATA INTEGRITY: FAILED")

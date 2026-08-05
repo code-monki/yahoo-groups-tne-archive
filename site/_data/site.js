@@ -2,8 +2,8 @@
 // canonical/OG mechanism reads `site.url` to build absolute URLs).
 module.exports = {
   title: "Traveller: The New Era",
-  subtitle: "Traveller_TNE Yahoo Groups Archive, 2005–2019",
+  subtitle: "Traveller_TNE Yahoo Groups Archive, 2005–2020",
   url: "https://code-monki.github.io/yahoo-groups-tne-archive",
   description:
-    "A static archive of the Traveller_TNE Yahoo! Group — Traveller: The New Era fans, 2005–2019 — preserved as threaded, searchable posts.",
+    "A static archive of the Traveller_TNE Yahoo! Group — Traveller: The New Era fans, 2005–2020 — preserved as threaded, searchable posts.",
 };

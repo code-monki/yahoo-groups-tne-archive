@@ -15,7 +15,7 @@ This SRS formalizes the feature set and decisions agreed in [concept.md](concept
 
 ### 1.2 Scope
 
-A static website, hosted on GitHub Pages, presenting the complete, read-only Traveller_TNE Yahoo! Group archive (724 source mbox records, spanning 18 May 2005 – 8 Aug 2019) as permalinked, threaded, full-text-searchable posts. No write path, no server-side component, no live data ingestion — see concept.md §4 for full non-goals.
+A static website, hosted on GitHub Pages, presenting the complete, read-only Traveller_TNE Yahoo! Group archive (724 source mbox records, spanning 18 May 2005 – 11 Jan 2020) as permalinked, threaded, full-text-searchable posts. No write path, no server-side component, no live data ingestion — see concept.md §4 for full non-goals.
 
 ### 1.3 Definitions
 
@@ -114,6 +114,14 @@ Design note: the user's original framing suggested a runtime 404 triggering the 
 | FR-26 | Must | For a post referencing an attachment whose file is *not* present in the attachment source folder at build time, the system shall instead render an affordance that opens an accessible modal dialog stating the attachment is not currently available in this archive. | For each attachment-referencing post currently lacking a file, the page shows the fallback affordance; activating it via mouse or keyboard opens a modal with the stated message; the modal is dismissible and fully keyboard-operable (NFR-2). |
 | FR-27 | Must | Attachment availability shall be determined solely by file presence in a dedicated attachment source folder at build time — never a hardcoded per-post flag — so that adding a previously-missing file to that folder and rebuilding is sufficient, on its own, to switch that post's page from the FR-26 modal to the FR-23 download link. | Starting from a post currently showing the FR-26 modal, adding a correctly-named file to the attachment source folder and rebuilding results in that post's page rendering the FR-23 link, with no other code or per-post metadata change. |
 
+### 3.6b Files section (added post-launch, ADR-0018)
+
+Context: real user feedback identified a gap §3.6a's own context paragraph had already flagged as a possibility but never turned into a requirement — Yahoo Groups' separate, shared Files section (upload not tied to any single email) has no representation in this archive. FR-23/26/27 above only ever covered per-post MIME attachments.
+
+| ID | Pri. | Requirement | Acceptance Criteria |
+|---|---|---|---|
+| FR-28 | Must | The system shall provide a Files section page, reachable from global navigation, listing every upload identifiable from Yahoo's own upload-notification emails (filename, uploader, description, upload date). Each entry shall render a working download link when its file is present in a dedicated Files source folder at build time, using the same availability mechanism as FR-26/FR-27 (an accessible "not currently available" affordance otherwise, reused rather than re-specified). | The Files page lists every entry in the derived manifest; for each, a working download link (200 response, correct content) or the FR-26 modal renders correctly depending on file presence at build time; adding a file and rebuilding switches an entry with no other change (same proof as FR-27). |
+
 ### 3.7 Legal & policy display
 
 | ID | Pri. | Requirement | Acceptance Criteria |
@@ -137,6 +145,7 @@ Per concept.md §4/§6: no user accounts, comments, or write path of any kind; n
 | DR-6 | Must | The site generator, search-index builder, and any other downstream tooling shall read only from the canonical dataset — never from the raw mbox or `.msf` file directly. | Static analysis (source grep) of the site generator and search-index builder finds no reference to the raw `YahooArchive` or `YahooArchive.msf` file paths. |
 | DR-7 | Should | The Mork (`.msf`) thread/singleton counts (data-structures.md §4.2) shall be used as a sanity cross-check against the pipeline's own computed thread count during development. | A documented comparison shows the pipeline's computed thread/singleton counts within a reasonable tolerance of the Mork-derived 472-thread/580-singleton figures, with any material deviation explained in dev notes. |
 | DR-8 | Must | The build process shall source attachment files from a dedicated directory in the repository (distinct from `mail_archives/`), matched to posts by a stable key (e.g. Yahoo permalink ID + original filename), and copy any present, matched file into the site's build output as part of every build. This is the mechanism FR-23/FR-26/FR-27 depend on. | A file placed in the designated attachment source directory under the expected naming convention appears, byte-identical, in the site's build output at the expected path after running the build; its absence produces no build error (per FR-26, absence is an expected, handled state, not a failure). |
+| DR-9 | Must | The Files-section manifest (FR-28) shall be derived automatically from Yahoo's own upload-notification emails during the same ETL run that produces the canonical post dataset — never hand-maintained — and is subject to DR-4's no-email-addresses rule the same as the post dataset. Files are sourced from a dedicated directory (distinct from `attachments/`), matched by the manifest entry's source post id, using the same build-time copy-if-present mechanism as DR-8. | Re-running the ETL against the frozen source archive reproduces the same manifest; automated regex scan of `data/files.json` finds zero email-address-shaped substrings; a file placed in the designated Files source directory under the expected naming convention appears, byte-identical, in the site's build output after running the build. |
 
 ## 5. Non-Functional Requirements
 
@@ -187,7 +196,7 @@ Per concept.md §4/§6: no user accounts, comments, or write path of any kind; n
 
 | Priority | Count |
 |---|---|
-| Must | FR-1–FR-20, FR-23–FR-27; DR-1–DR-4, DR-6, DR-8; NFR-1–NFR-11 |
+| Must | FR-1–FR-20, FR-23–FR-28; DR-1–DR-4, DR-6, DR-8–DR-9; NFR-1–NFR-11 |
 | Should | DR-5, DR-7 |
 | Could | FR-21, FR-22 |
 
@@ -195,4 +204,4 @@ Per concept.md §4/§6: no user accounts, comments, or write path of any kind; n
 
 - **Legal/licensing** (code license, content license, trademark disclaimer wording, takedown contact channel): resolved, reflected in FR-24, FR-25, NFR-10, NFR-11.
 - ~~**Attachment source folder — naming/matching convention**~~ (DR-8): resolved in dd.md §1/§2 — `attachments/<id>/<original-filename>`, keyed by the same `id` as the owning post (ADR-0006).
-- **Recovered Yahoo Groups Files/Photos content — provenance unknown.** data-structures.md §5 documents that at least one group member claimed to have saved the group's Files/Photos section before Yahoo deleted it in Dec 2019, and offered to send it to the archive owner — but whether that transfer happened, and whether any such files are actually in hand for this project, is unconfirmed. Doesn't block FR-23/26/27 (which are designed to work correctly whether zero or many files are ever supplied), but worth the archive owner following up on that 2019 offer if the fuller archive is desired.
+- ~~**Recovered Yahoo Groups Files/Photos content — provenance unknown.**~~ Partially resolved post-launch (FR-28, DR-9, ADR-0018): the Files page now exists, its manifest auto-derived from Yahoo's own upload-notification emails (10 known uploads), each with a working download link or the FR-26 affordance depending on whether the file has actually been recovered. 1 of 10 recovered and live as of this writing. Whether the rest of that Dec 2019 offer's contents are still obtainable remains unconfirmed — doesn't block anything (FR-28, like FR-23/26/27, is designed to work correctly whether zero or many files are ever supplied), but still worth the archive owner following up on if the fuller archive is desired.

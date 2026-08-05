@@ -79,6 +79,12 @@ Some requirements already have partial design-time evidence — not just a plan 
 | FR-26 | ADR-0006, dd.md §6, ui-design.md §5 (native `<dialog>` modal) — **✓ pre-verified**: unavailable-state affordance rendered in mockup (the modal's *open* state itself wasn't captured in the static screenshot set, since it's a transient interaction, not a navigable screen — available to check live in the artifact) | `[A11y]`/`[Manual]` keyboard-activation + focus-trap check |
 | FR-27 | ADR-0006, ADR-0007/ADR-0009 (ID stability underpins this), dd.md §5/§6 | `[Manual]` add-file-and-rebuild scenario test |
 
+### 1.7a Files section (added post-launch, ADR-0018)
+
+| ID | Design Reference | Verification |
+|---|---|---|
+| FR-28 | ADR-0018, dd.md §6a, `site/files.njk` (reuses ADR-0006's `<dialog>` modal and dd.md §6's availability mechanism) | `[Build]`/`[A11y]`/`[Manual]` manifest-count + per-entry availability check, add-file-and-rebuild scenario test |
+
 ### 1.8 Legal & policy display
 
 | ID | Design Reference | Verification |
@@ -98,6 +104,7 @@ Some requirements already have partial design-time evidence — not just a plan 
 | DR-6 | ADR-0001, dd.md §1 (repo layout: pipeline reads only `mail_archives/`, writes `data/posts.json`; site reads only the dataset) | `[Build]` source-grep static analysis |
 | DR-7 | hld.md §4 step 5 (Mork cross-check) | `[Manual]` dev-time comparison note |
 | DR-8 | ADR-0006, dd.md §1/§2/§6 (`attachments/<id>/<filename>`) | `[Build]` file-copy verification |
+| DR-9 | ADR-0018, dd.md §1/§6a (`files/<source-post-id>/<filename>`, `data/files.json`) | `[Build]` regex scan (shared mechanism with DR-4) + file-copy verification |
 
 ## 3. Non-Functional Requirements
 
@@ -156,10 +163,10 @@ Compiling this matrix surfaced three real gaps — this is the RTM doing its job
 
 | Category | Count | Design-traced | Pre-verified now (mockup/computed evidence) |
 |---|---|---|---|
-| Functional (FR) | 25 | 25/25 | 13 |
-| Data (DR) | 8 | 8/8 | 0 (all pending real ETL implementation) |
+| Functional (FR) | 28 | 28/28 | 13 |
+| Data (DR) | 9 | 9/9 | 0 (all pending real ETL implementation) |
 | Non-functional (NFR) | 11 | 11/11 | 2 (NFR-4, NFR-7 partially) |
 | External Interface (IR) | 2 | 2/2 | 0 |
-| **Total** | **46** | **46/46** | **15** |
+| **Total** | **50** | **50/50** | **15** |
 
-Every requirement traces to a design decision; none are orphaned. The "pre-verified" count is a bonus of having built the interactive mockup and the computed contrast table before writing this RTM — most of those are FR items whose visual/UX shape the mockup already demonstrates, not a substitute for the real automated checks the Test Plan will define.
+Every requirement traces to a design decision; none are orphaned. The "pre-verified" count is a bonus of having built the interactive mockup and the computed contrast table before writing this RTM — most of those are FR items whose visual/UX shape the mockup already demonstrates, not a substitute for the real automated checks the Test Plan will define. FR-28/DR-9 (added post-launch, ADR-0018) postdate the mockup phase entirely and were verified directly against the real, deployed site instead — see docs/defect-log.md #20/#21.

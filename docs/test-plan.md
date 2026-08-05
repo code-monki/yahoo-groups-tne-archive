@@ -13,9 +13,9 @@ Out of scope: load/stress testing (a static site on GitHub Pages' CDN has no mea
 
 ## 2. Representative page sample
 
-Per dd.md §11's reasoning (all posts share one template, so template-level coverage is what's meaningful, not per-post coverage), automated per-page checks (axe-core, Lighthouse) run against one instance of each of the 11 real page templates (dd.md §7.2), not all ~900+ generated pages:
+Per dd.md §11's reasoning (all posts share one template, so template-level coverage is what's meaningful, not per-post coverage), automated per-page checks (axe-core, Lighthouse) run against one instance of each of the 12 real page templates (dd.md §7.2 — 11 at initial launch, plus `files` added post-launch per ADR-0018), not all ~5800+ generated pages:
 
-`home` · `post` · `thread` · `author` · `authors-index` · `topic` · `topics-index` · `browse-year` · `browse-month` · `search` · `help`
+`home` · `post` · `thread` · `author` · `authors-index` · `topic` · `topics-index` · `browse-year` · `browse-month` · `files` · `search` · `help`
 
 Fixture selection for templates with variable content (post, thread, author, topic, browse-year, browse-month) should include at least one instance with: a long body, a short/singleton post, and — once real data exists — the actual longest thread and largest browse-year in the archive, not just an arbitrary example. `sitemap.xml` is excluded from UI-focused checks (it's not HTML) but included in the build-output existence check (TC-DATA-08).
 
@@ -40,6 +40,7 @@ Run against `data/posts.json` directly, before or independent of the site build.
 | TC-DATA-06 | DR-6 | `grep`/static-analysis the site generator and search-index builder source for references to `YahooArchive` or `YahooArchive.msf` paths. | Zero references outside the ETL module itself. |
 | TC-DATA-07 | DR-7 | Compare pipeline's computed thread/singleton counts against the Mork-derived 472-thread/580-singleton reference (data-structures.md §4.2). | Within a reasonable tolerance, or deviation is explained in dev notes — not a hard numeric gate (data-structures.md never claimed the Mork figures were exactly reproducible, only a sanity signal). |
 | TC-DATA-08 | DR-8, FR-20 | Place a test file in `attachments/<id>/`, run `make build`, confirm it's byte-identical in build output at the expected path; confirm `_site/sitemap.xml` exists and is non-empty. | File copied correctly; build produces no error when a referenced attachment is absent (that's the expected, handled state per FR-26). |
+| TC-DATA-09 | DR-9 | Re-run `make data`; diff `data/files.json` against the previous commit. Regex-scan `data/files.json` for email-address-shaped substrings. | Manifest reproduces identically from the frozen source (no non-deterministic extraction); zero email matches. |
 
 ## 5. Test cases — Functional (site behavior)
 
@@ -57,26 +58,27 @@ Executed against the built site (`_site/`) via Playwright, or by manual procedur
 | TC-FUNC-08 | FR-10 | Query a root word (e.g. "orbit"); confirm a result containing only an inflected form ("orbiting") is returned. | Stemmed match returned even without literal query string present. |
 | TC-FUNC-09 | FR-12, FR-13 | Run ≥5 sample searches; verify each result links to its permalink, subject matches rank above body-only matches, snippets show `<mark>`-highlighted terms. | All three hold for every sampled query. |
 | TC-FUNC-10 | FR-14, FR-15, FR-17 | Compare Browse/Authors/Topics index counts against dataset aggregates. | Exact match. |
-| TC-FUNC-11 | FR-16 | Diff nav markup (including Help link) across one sample page per template. | Identical markup, all 11 templates. |
+| TC-FUNC-11 | FR-16 | Diff nav markup (including Help link) across one sample page per template. | Identical markup, all 12 templates. |
 | TC-FUNC-12 | FR-18, FR-25 | Manual checklist against the Help page: origin/date-range stated, unofficial-status disclaimer present, how-to-use content present, full takedown policy + both contact channels present. | All items present. |
 | TC-FUNC-13 | FR-19 | Set OS/browser `prefers-color-scheme` to dark, load a fresh page with no prior toggle interaction; repeat for light. | Site matches OS preference without requiring the manual toggle. |
 | TC-FUNC-14 | FR-23, FR-26, FR-27 | (a) For a post with a present attachment file, confirm working download link. (b) For one without, confirm the FR-26 modal renders and is keyboard-operable. (c) Add a file for a case-(b) post, rebuild, re-check it now matches case (a) with no other change. | All three behaviors confirmed; (c) specifically proves FR-27's "just add the file" property. |
-| TC-FUNC-15 | FR-24 | Check footer on one sample page per template for a working link to `/help/#takedown`. | Present and functional on all 11 templates. |
+| TC-FUNC-15 | FR-24 | Check footer on one sample page per template for a working link to `/help/#takedown`. | Present and functional on all 12 templates. |
+| TC-FUNC-16 | FR-28 | Load `/files/`; compare rendered entry count against `data/files.json`. For each entry, confirm a working download link (file present) or the FR-26 modal (file absent) matches actual file presence in `files/<source-post-id>/`. | Entry count matches exactly; every entry's rendered state matches actual file presence, no exceptions. |
 
 ## 6. Test cases — Accessibility
 
 | Case ID | Traces to | Procedure | Pass criterion |
 |---|---|---|---|
-| TC-A11Y-01 | NFR-1 | `@axe-core/playwright` scan against all 11 representative templates (§2), both themes. | Zero critical/serious violations, all 22 (template × theme) runs. |
+| TC-A11Y-01 | NFR-1 | `@axe-core/playwright` scan against all 12 representative templates (§2), both themes. | Zero critical/serious violations, all 24 (template × theme) runs. |
 | TC-A11Y-02 | NFR-2 | Manual keyboard-only walkthrough (no mouse) of every interactive element per template: nav, search, theme toggle, the FR-26 modal, breadcrumbs. | Every element reachable and operable; visible focus indicator at every stop. |
 | TC-A11Y-03 | NFR-3 | Automated crawl: exactly one `<h1>` per page, no skipped heading levels, no `<img>` missing `alt`. | Holds site-wide, not just the sample. |
-| TC-A11Y-04 | NFR-4 | Automated contrast check across all 11 templates, both themes. | Zero failures against WCAG 2.2 AA — this is a confirmation of ui-design.md §2's already-computed ratios against the real rendered output, not a first-time check. |
+| TC-A11Y-04 | NFR-4 | Automated contrast check across all 12 templates, both themes. | Zero failures against WCAG 2.2 AA — this is a confirmation of ui-design.md §2's already-computed ratios against the real rendered output, not a first-time check. |
 
 ## 7. Test cases — Performance & SEO
 
 | Case ID | Traces to | Procedure | Pass criterion |
 |---|---|---|---|
-| TC-PERF-01 | NFR-5 | Lighthouse CI against all 11 templates, mobile + desktop presets. | ≥90 in Performance, Accessibility, Best Practices, and SEO — all templates, both presets. |
+| TC-PERF-01 | NFR-5 | Lighthouse CI against all 12 templates, mobile + desktop presets. | ≥90 in Performance, Accessibility, Best Practices, and SEO — all templates, both presets. |
 | TC-PERF-02 | NFR-6, ADR-0015 | Network trace on a non-search page: confirm no Pagefind/`search.js` request occurs. Network trace on `/search/`: confirm it loads `defer`red and doesn't block FCP. | Zero search-related requests off `/search/`; no measurable FCP delay attributable to search assets on `/search/` itself. |
 | TC-PERF-03 | FR-20, ADR-0016 | Confirm `sitemap.xml` is well-formed XML listing every built page; spot-check 3 pages' `<head>` for canonical URL + OG/Twitter tags. | Sitemap valid and complete; metadata present on sampled pages. |
 

@@ -25,6 +25,8 @@ Entries found and fixed *during* implementation (i.e. before any `docs/test-plan
 | 17 | Major | 9 (post-launch) | Orphaned literal "mailto:" label text (address already scrubbed, prefix left behind) remained in 341/4060 post bodies | Fixed |
 | 18 | Minor | 9 (post-launch) | "-------- Original message --------" quoted-forward headers rendered as garbled, hard-wrapped Subject/From/To/CC text with always-blank To:/CC: shown as noise | Fixed |
 | 19 | Major | 9 (post-launch) | Fixing #18 shipped its own bug: the trailing cleanup after "CC:" was unbounded and silently deleted the leading quote marker off genuinely quoted reply text whenever it started with the same characters | Fixed |
+| 20 | Major | 9 (post-launch) | Files-section manifest extraction duplicated entries: a reply quoting the upload notification inline matched the same extraction pattern as the real notification | Fixed |
+| 21 | Major | 9 (post-launch) | Files-section manifest extraction silently dropped 4 of 10 real entries when the scrubbed-email remnant after "Uploaded by:" wrapped across extra blank lines | Fixed |
 
 ---
 
@@ -257,6 +259,30 @@ Entries found and fixed *during* implementation (i.e. before any `docs/test-plan
 **Verified:** Synthetic 4-level nested-quote test: all levels' distinct quote-marker depths (`">"`, `"> >"`, `"> > >"`) preserved correctly on their real content. Re-ran the full ETL from raw source and re-checked all 13 real occurrences directly: every genuine leading quote marker previously lost (7234, 7235, 7245, 7325, 7329, 7331) is now present and correct, while purely-empty quote-only lines are still cleaned up as intended. Full `make test` clean (43 Playwright checks, both Lighthouse presets, 0 broken links) before redeploying.
 
 **Process note:** This is the second time in this same investigation (after #8) that fixing a boilerplate/formatting issue introduced its own content-loss bug on the first attempt. Both times, what actually caught it was testing against a *harder* real-world case (multi-paragraph content in #8, multi-level nesting here) rather than accepting that the cases already tested looked correct. Worth remembering as a standing pattern for any future change in this area: real archived text is quoted, forwarded, and re-quoted with enough structural variety that a fix validated against a handful of examples can still hide a failure mode one level of nesting away.
+
+## 20. Files-manifest extraction duplicated entries from quoted replies
+
+**Severity:** Major (would have shown "ConsolidatedTNEErrata.pdf" twice on the Files page, with the reply's own timestamp/description as if it were a second, separate upload).
+
+**Found:** During development of ADR-0018's manifest extraction, before it ever shipped -- an initial test run against the real archive returned 11 entries where only 10 real uploads exist.
+
+**Root cause:** The same "a reply quotes the entire previous message verbatim, including structural markers that look like the start of a new record" pattern already seen twice elsewhere in this pipeline (digest_parser.py's phantom-post bug, defect #4; the "-------- Original message --------" duplication risk in #18/#19). Post 6542, "Re: New file uploaded to Traveller_TNE", quotes the original notification (post 6541) inline, and the notification-extraction regex matched both.
+
+**Fix:** `extract_file_upload_notifications()` skips any post whose subject starts with `"Re:"` -- the genuine auto-sent notification is never a reply, so this excludes the reply-quotes without needing to guess based on content.
+
+**Verified:** Manifest count dropped from 11 to the correct 10, with no duplicate filenames sharing a notification-adjacent timestamp.
+
+## 21. Files-manifest extraction silently dropped 4 of 10 real entries
+
+**Severity:** Major (4 real, recoverable-filename uploads would have been entirely absent from the Files page with no indication anything was missing).
+
+**Found:** Same pre-ship testing pass as #20 -- an initial run returned only 6 of the 10 real notification emails.
+
+**Root cause:** The extraction regex expected `"Uploaded by : NAME <>"` (empty brackets, already scrubbed) on a single line before `"Description :"` could follow. In 4 of the 10 real notifications, the scrubbed remnant itself wraps across an extra blank line (`"Uploaded by : donm61873 <\n\n>\n"`) -- a `[^\n]*` immediately after the name only tolerated one line, so the regex failed to match at all for these four, silently, with no error.
+
+**Fix:** Widened the gap between the uploader's name and the following `"Description:"` label to a non-greedy `.*?` (DOTALL), letting it span however many wrapped lines the scrubbed remnant happens to occupy.
+
+**Verified:** All 10 real notifications extracted correctly; spot-checked each filename against the raw archive by hand.
 
 ## Related but not logged as a defect: Pagefind's fuzzy matching has no reliable "no results" threshold
 
