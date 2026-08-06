@@ -437,6 +437,7 @@ def _clean_header_field(raw: str) -> str:
     text = re.sub(r"</?b>", "", text)
     text = re.sub(r"&gt;", ">", text)
     text = re.sub(r"&lt;", "<", text)
+    text = re.sub(r"&quot;", '"', text)
     # Quote markers only ever mean something at the start of a wrapped
     # line ("> " or repeated "> > " for nested quoting) -- collapsed after,
     # once real line breaks are gone, whitespace-only.
@@ -552,19 +553,29 @@ _OUTLOOK_ORIGINAL_MESSAGE_HTML_RE = re.compile(
 _OUTLOOK_NOOP_FIELD_RE = re.compile(r"\b(?:Sender|Reply-To):\s*", re.IGNORECASE)
 
 
+def _strip_scrubbed_address_remnants(text: str) -> str:
+    """Drop the punctuation left behind once an address inside it has
+    already been scrubbed to nothing: empty "[]" (a stripped "[mailto:...]"),
+    empty "" (a display-name-that-was-just-the-address, quoted in the
+    Outlook convention's fallback rendering), and "<"/">" individually
+    rather than as a matched pair -- the closing ">" of an empty "<>" can
+    land right at the boundary with the next field's own quote-marker
+    tolerance (_QUOTE_WS_TEXT/_QUOTE_WS_HTML also accepts a bare ">"),
+    which can end up consuming it instead of leaving it in this capture.
+    Safe unconditionally in any of these header fields: any address that
+    was ever inside this punctuation has already been scrubbed, so none of
+    these characters ever carries real content on their own here.
+    """
+    text = re.sub(r"\[\s*\]", "", text)
+    text = re.sub(r'"\s*"', "", text)
+    text = re.sub(r"[<>]", "", text)
+    return text
+
+
 def _clean_outlook_name_field(raw: str) -> str:
     text = _clean_header_field(raw)
     text = _OUTLOOK_NOOP_FIELD_RE.sub("", text)
-    text = re.sub(r"\[\s*\]", "", text)
-    # The closing ">" of an empty "<>" remnant can land right at the
-    # boundary with the next field's own quote-marker tolerance
-    # (_QUOTE_WS_TEXT/_QUOTE_WS_HTML also accepts a bare ">"), which can
-    # end up consuming it instead of leaving it in this capture -- so "<"
-    # and ">" are stripped independently rather than requiring a matched
-    # pair. Safe unconditionally here: in this field, any address that was
-    # ever inside these brackets has already been scrubbed, so neither
-    # character ever carries real content on its own.
-    text = re.sub(r"[<>]", "", text)
+    text = _strip_scrubbed_address_remnants(text)
     m = re.search(r"On Behalf Of\s*", text, flags=re.IGNORECASE)
     if m:
         text = text[m.end():]
@@ -574,16 +585,7 @@ def _clean_outlook_name_field(raw: str) -> str:
 def _clean_outlook_to_field(raw: str) -> str:
     text = _clean_header_field(raw)
     text = _OUTLOOK_NOOP_FIELD_RE.sub("", text)
-    text = re.sub(r"\[\s*\]", "", text)
-    # The closing ">" of an empty "<>" remnant can land right at the
-    # boundary with the next field's own quote-marker tolerance
-    # (_QUOTE_WS_TEXT/_QUOTE_WS_HTML also accepts a bare ">"), which can
-    # end up consuming it instead of leaving it in this capture -- so "<"
-    # and ">" are stripped independently rather than requiring a matched
-    # pair. Safe unconditionally here: in this field, any address that was
-    # ever inside these brackets has already been scrubbed, so neither
-    # character ever carries real content on its own.
-    text = re.sub(r"[<>]", "", text)
+    text = _strip_scrubbed_address_remnants(text)
     return re.sub(r"\s+", " ", text).strip()
 
 
@@ -614,6 +616,72 @@ def reflow_outlook_original_message_header(text: str, is_html: bool) -> str:
         return sep.join(parts) + " "
 
     pattern = _OUTLOOK_ORIGINAL_MESSAGE_HTML_RE if is_html else _OUTLOOK_ORIGINAL_MESSAGE_TEXT_RE
+    return pattern.sub(repl, text)
+
+
+# A fourth quoted-forward convention -- Yahoo Mail's own "classic" compose
+# view, divided by a plain underscore rule rather than any dashed or
+# bracketed marker text. 39 real occurrences, confirmed by direct sampling.
+# Field order is fixed (From/To/Sent/Subject -- To always carries only the
+# list's own scrubbed address, never a personal one, so it's dropped every
+# time in practice, same as the two 8-dash-convention fields it echoes).
+# The divider itself is long enough that Yahoo inserts <wbr> inside it the
+# same as it does for addresses (confirmed: "____________<wbr>_________
+# <wbr>_________<wbr>__", always the same total length) -- in body_text
+# this becomes several separate "___"-only lines (get_text() puts a real
+# newline at each <wbr>), in body_html the <wbr> tags carry no content of
+# their own and are simply unwrapped, so the underscores end up as one
+# unbroken run with nothing to split on.
+# A single bounded [_\s]* between two literal "_" anchors, not a repeated
+# group of "_{2,}" alternating with whitespace -- the latter shape (a
+# quantified group whose own body is itself quantified over a character
+# class it also matches outside the group) is the classic catastrophic-
+# backtracking trap: on non-matching input, the engine can partition a long
+# run of underscores/whitespace combinatorially many ways before giving up.
+# This form matches the same realistic text with a single quantifier, no
+# nested ambiguity, and provably linear-time backtracking.
+_UNDERSCORE_DIVIDER_TEXT = r"_[_\s]*_"
+_UNDERSCORE_ORIGINAL_MESSAGE_TEXT_RE = re.compile(
+    _UNDERSCORE_DIVIDER_TEXT
+    + _QUOTE_WS_TEXT + r"From:\s*(?P<from>.*?)"
+    + _QUOTE_WS_TEXT + r"To:\s*(?P<to>.*?)"
+    + _QUOTE_WS_TEXT + r"Sent:\s*(?P<when>.*?)"
+    + _QUOTE_WS_TEXT + r"Subject:[ \t]*\r?\n?[ \t]*",
+    re.DOTALL,
+)
+_UNDERSCORE_ORIGINAL_MESSAGE_HTML_RE = re.compile(
+    r"_{2,}"
+    + _QUOTE_WS_HTML + r"(?:<b>)?From:(?:</b>)?\s*(?P<from>.*?)"
+    + _QUOTE_WS_HTML + r"(?:<b>)?To:(?:</b>)?\s*(?P<to>.*?)"
+    + _QUOTE_WS_HTML + r"(?:<b>)?Sent:(?:</b>)?\s*(?P<when>.*?)"
+    + _QUOTE_WS_HTML + r"(?:<b>)?Subject:(?:</b>)?[ \t]*(?:<br\s*/?>)?[ \t]*",
+    re.DOTALL,
+)
+
+
+def reflow_underscore_original_message_header(text: str, is_html: bool) -> str:
+    """Rewrite Yahoo Mail's underscore-divided quoted-forward header onto
+    clean, single-line fields -- same treatment and same rationale for
+    leaving the Subject value itself untouched as
+    reflow_outlook_original_message_header.
+    """
+    sep = "<br/>\n" if is_html else "\n"
+
+    def repl(m: re.Match) -> str:
+        sender = _clean_outlook_name_field(m.group("from"))
+        to = _clean_outlook_to_field(m.group("to"))
+        when = _clean_header_field(m.group("when"))
+        parts = ["________________________________"]
+        if sender:
+            parts.append(f"From: {sender}")
+        if to:
+            parts.append(f"To: {to}")
+        if when:
+            parts.append(f"Sent: {when}")
+        parts.append("Subject:")
+        return sep.join(parts) + " "
+
+    pattern = _UNDERSCORE_ORIGINAL_MESSAGE_HTML_RE if is_html else _UNDERSCORE_ORIGINAL_MESSAGE_TEXT_RE
     return pattern.sub(repl, text)
 
 
